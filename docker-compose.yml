@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: watchmyai-postgres
+    environment:
+      POSTGRES_DB: watchmyai
+      POSTGRES_USER: watchmyai
+      POSTGRES_PASSWORD: watchmyai
+    ports:
+      - "5432:5432"
+    volumes:
+      - watchmyai-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  watchmyai-postgres-data:

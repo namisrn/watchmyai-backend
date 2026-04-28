@@ -1,5 +1,3 @@
-
-
 package com.watchmyai.ai;
 
 import com.watchmyai.quota.PlanType;
