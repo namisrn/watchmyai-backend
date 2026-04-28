@@ -8,7 +8,7 @@ import java.time.YearMonth;
 @Service
 public class UsageService {
 
-    private static final String DEBUG_USER_ID = "debug-user";
+    private static final String DEVELOPMENT_USER_ID = "debug-user";
 
     private final UserUsageRepository userUsageRepository;
 
@@ -60,11 +60,17 @@ public class UsageService {
 
     private UserUsageEntity getOrCreateCurrentUsage(PlanType planType) {
         String currentPeriod = YearMonth.now().toString();
+        String userId = getCurrentUserId();
 
         return userUsageRepository
-                .findByUserIdAndPeriodYearMonth(DEBUG_USER_ID, currentPeriod)
+                .findByUserIdAndPeriodYearMonth(userId, currentPeriod)
                 .orElseGet(() -> userUsageRepository.save(
-                        new UserUsageEntity(DEBUG_USER_ID, planType, currentPeriod)
+                        new UserUsageEntity(userId, planType, currentPeriod)
                 ));
+    }
+
+    private String getCurrentUserId() {
+        // Development fallback until the real auth/session context is introduced.
+        return DEVELOPMENT_USER_ID;
     }
 }

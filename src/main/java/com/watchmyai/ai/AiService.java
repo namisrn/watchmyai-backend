@@ -38,7 +38,8 @@ public class AiService {
     }
 
     public AskAIResponse ask(AskAIRequest request) {
-        // TODO: Später aus echtem User-/Subscription-Kontext laden.
+        // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
+        // UsageService uses a central development user identity until authentication is introduced.
         PlanType currentPlan = debugPlanService.getCurrentPlan();
         QuotaCheckResult quota = quotaService.checkQuota(currentPlan);
 
