@@ -23,7 +23,8 @@ public class QuotaController {
 
     @GetMapping("/debug")
     public QuotaCheckResult debugQuota() {
-        // TODO: Später aus echtem User-/Subscription-Kontext laden.
+        // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
+        // UsageService uses a central development user identity until authentication is introduced.
         return quotaService.checkQuota(debugPlanService.getCurrentPlan());
     }
 
