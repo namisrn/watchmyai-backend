@@ -1,11 +1,13 @@
 package com.watchmyai.quota;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Profile("dev")
 @RestController
 @RequestMapping("/api/v1/quota")
 public class QuotaController {
@@ -23,8 +25,6 @@ public class QuotaController {
 
     @GetMapping("/debug")
     public QuotaCheckResult debugQuota() {
-        // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
-        // UsageService uses a central development user identity until authentication is introduced.
         return quotaService.checkQuota(debugPlanService.getCurrentPlan());
     }
 
