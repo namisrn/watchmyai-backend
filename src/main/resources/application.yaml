@@ -2,20 +2,10 @@ spring:
   application:
     name: watchmyai-backend
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/watchmyai
-    username: watchmyai
-    password: watchmyai
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
+  profiles:
+    default: dev
 
   jpa:
-    defer-datasource-initialization: false
-    hibernate:
-      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
