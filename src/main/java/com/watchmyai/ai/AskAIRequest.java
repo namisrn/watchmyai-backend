@@ -5,24 +5,27 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record AskAIRequest(
-        @NotBlank
-        @Size(max = 2_000)
+        @NotBlank(message = "input must not be blank")
+        @Size(max = 2_000, message = "input must not exceed 2000 characters")
         String input,
 
-        @NotBlank
-        @Pattern(regexp = "watch|ios")
+        @NotBlank(message = "source must not be blank")
+        @Pattern(regexp = "watch|ios", message = "source must be one of: watch, ios")
         String source,
 
-        @NotBlank
-        @Pattern(regexp = "short_answer|translate|rewrite|explain|premium_reasoning")
+        @NotBlank(message = "mode must not be blank")
+        @Pattern(
+                regexp = "short_answer|translate|rewrite|explain|premium_reasoning",
+                message = "mode must be one of: short_answer, translate, rewrite, explain, premium_reasoning"
+        )
         String mode,
 
-        @NotBlank
-        @Pattern(regexp = "de|en|auto")
+        @NotBlank(message = "language must not be blank")
+        @Pattern(regexp = "de|en|auto", message = "language must be one of: de, en, auto")
         String language,
 
-        @NotBlank
-        @Size(min = 8, max = 100)
+        @NotBlank(message = "clientRequestId must not be blank")
+        @Size(min = 8, max = 100, message = "clientRequestId must be between 8 and 100 characters")
         String clientRequestId
 ) {
 }
