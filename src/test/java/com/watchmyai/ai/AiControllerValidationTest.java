@@ -93,7 +93,56 @@ class AiControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[*].field", hasItem("source")));
     }
+    @Test
+    void askReturnsBadRequestForInvalidMode() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "input": "Hallo",
+                              "source": "watch",
+                              "mode": "hack",
+                              "language": "de",
+                              "clientRequestId": "test-request-001"
+                            }
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[*].field", hasItem("mode")));
+    }
 
+    @Test
+    void askReturnsBadRequestForInvalidLanguage() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "input": "Hallo",
+                              "source": "watch",
+                              "mode": "explain",
+                              "language": "fr",
+                              "clientRequestId": "test-request-001"
+                            }
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[*].field", hasItem("language")));
+    }
+
+    @Test
+    void askReturnsBadRequestForShortClientRequestId() throws Exception {
+        mockMvc.perform(post("/api/v1/ai/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "input": "Hallo",
+                              "source": "watch",
+                              "mode": "explain",
+                              "language": "de",
+                              "clientRequestId": "123"
+                            }
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[*].field", hasItem("clientRequestId")));
+    }
     @Test
     void askReturnsBadRequestForMalformedJson() throws Exception {
         mockMvc.perform(post("/api/v1/ai/ask")
