@@ -5,7 +5,9 @@ import com.watchmyai.user.UserIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.YearMonth;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +20,11 @@ import static org.mockito.Mockito.when;
 class UsageServiceTest {
 
     private static final String TEST_USER_ID = "test-user";
-    private static final String CURRENT_PERIOD = YearMonth.now().toString();
+    private static final Clock FIXED_CLOCK = Clock.fixed(
+            Instant.parse("2026-04-15T10:00:00Z"),
+            ZoneOffset.UTC
+    );
+    private static final String CURRENT_PERIOD = "2026-04";
 
     private UserUsageRepository userUsageRepository;
     private UsageService usageService;
@@ -30,7 +36,7 @@ class UsageServiceTest {
         when(userContextService.getCurrentUser())
                 .thenReturn(new UserIdentity(TEST_USER_ID));
 
-        usageService = new UsageService(userUsageRepository, userContextService);
+        usageService = new UsageService(userUsageRepository, userContextService, FIXED_CLOCK);
     }
 
     @Test

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("unchecked")
 class AiServiceIdempotencyTest {
 
     private static final String USER_ID = "test-user";

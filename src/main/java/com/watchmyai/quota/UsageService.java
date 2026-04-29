@@ -4,6 +4,7 @@ import com.watchmyai.user.UserContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.YearMonth;
 
 @Service
@@ -11,13 +12,16 @@ public class UsageService {
 
     private final UserUsageRepository userUsageRepository;
     private final UserContextService userContextService;
+    private final Clock clock;
 
     public UsageService(
             UserUsageRepository userUsageRepository,
-            UserContextService userContextService
+            UserContextService userContextService,
+            Clock clock
     ) {
         this.userUsageRepository = userUsageRepository;
         this.userContextService = userContextService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -77,7 +81,7 @@ public class UsageService {
     }
 
     private String getCurrentPeriodYearMonth() {
-        return YearMonth.now().toString();
+        return YearMonth.now(clock).toString();
     }
 
     private UsageSnapshot toSnapshot(UserUsageEntity usage) {
