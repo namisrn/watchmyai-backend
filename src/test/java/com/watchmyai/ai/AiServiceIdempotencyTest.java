@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,8 +82,8 @@ class AiServiceIdempotencyTest {
                 true,
                 14,
                 30,
-                0.003,
-                0.01,
+                new BigDecimal("0.003000"),
+                new BigDecimal("0.010000"),
                 "normal"
         );
         AiRequestLogEntity storedLog = new AiRequestLogEntity(
@@ -121,8 +122,8 @@ class AiServiceIdempotencyTest {
                 true,
                 14,
                 30,
-                0.003,
-                0.01,
+                new BigDecimal("0.003000"),
+                new BigDecimal("0.010000"),
                 "normal"
         );
         AiRequestLogEntity storedLog = new AiRequestLogEntity(
@@ -155,7 +156,7 @@ class AiServiceIdempotencyTest {
     @Test
     void askProcessesAndStoresNewAllowedRequest() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, 0.01);
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
         QuotaCheckResult updatedQuota = quotaResult(true, 14, 30, limits);
 
@@ -172,13 +173,9 @@ class AiServiceIdempotencyTest {
         when(promptBuilder.buildUserPrompt(request))
                 .thenReturn("Hallo");
         when(openAiClient.ask("gpt-5.4-mini", "system prompt", "Hallo", 180))
-                .thenReturn("Neue Antwort");
-        when(costEstimatorService.estimateInputTokens("system prompt", "Hallo"))
-                .thenReturn(8);
-        when(costEstimatorService.estimateOutputTokens("Neue Antwort"))
-                .thenReturn(3);
+                .thenReturn(new OpenAiResponse("Neue Antwort", 8, 3));
         when(costEstimatorService.estimateCostEur("gpt-5.4-mini", 8, 3))
-                .thenReturn(0.00002);
+                .thenReturn(new BigDecimal("0.000020"));
 
         AskAIResponse response = aiService.ask(request);
 
@@ -188,14 +185,14 @@ class AiServiceIdempotencyTest {
         assertThat(response.remainingRequests()).isEqualTo(14);
         assertThat(response.monthlyUsagePercent()).isEqualTo(30);
 
-        verify(usageService).recordRequest(PlanType.FREE, 0.00002, false);
+        verify(usageService).recordRequest(PlanType.FREE, new BigDecimal("0.000020"), false);
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }
 
     @Test
     void askStoresBlockedResponseWithoutCallingOpenAiOrRecordingUsage() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, 0.01);
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult cappedQuota = quotaResult(false, 0, 100, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
@@ -219,7 +216,7 @@ class AiServiceIdempotencyTest {
     @Test
     void askDoesNotRecordUsageWhenOpenAiFails() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, 0.01);
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
@@ -269,7 +266,7 @@ class AiServiceIdempotencyTest {
                 0,
                 limits.monthlyPremiumRequestLimit(),
                 monthlyUsagePercent,
-                0.002,
+                new BigDecimal("0.002000"),
                 limits.monthlyCostCapEur(),
                 requestAllowed ? "normal" : "capped",
                 limits

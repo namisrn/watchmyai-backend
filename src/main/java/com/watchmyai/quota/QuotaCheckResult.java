@@ -1,5 +1,7 @@
 package com.watchmyai.quota;
 
+import java.math.BigDecimal;
+
 public record QuotaCheckResult(
         PlanType planType,
         boolean requestAllowed,
@@ -7,8 +9,8 @@ public record QuotaCheckResult(
         int usedPremiumRequests,
         int monthlyPremiumRequestLimit,
         int monthlyUsagePercent,
-        double estimatedMonthlyCostEur,
-        double monthlyCostCapEur,
+        BigDecimal estimatedMonthlyCostEur,
+        BigDecimal monthlyCostCapEur,
         String throttleState,
         PlanLimits limits
 ) {

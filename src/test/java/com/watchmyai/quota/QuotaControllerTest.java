@@ -6,6 +6,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,7 +33,7 @@ class QuotaControllerTest {
                 1000,
                 0,
                 300,
-                2.00
+                new BigDecimal("2.000000")
         );
         QuotaCheckResult quota = new QuotaCheckResult(
                 PlanType.PLUS,
@@ -40,8 +42,8 @@ class QuotaControllerTest {
                 0,
                 0,
                 26,
-                0.52,
-                2.00,
+                new BigDecimal("0.520000"),
+                new BigDecimal("2.000000"),
                 "normal",
                 limits
         );

@@ -2,6 +2,9 @@ package com.watchmyai.quota;
 
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 @Service
 public class QuotaService {
 
@@ -31,7 +34,7 @@ public class QuotaService {
         int remainingRequests = Math.max(requestLimit - usedRequests, 0);
 
         boolean requestAllowed = remainingRequests > 0
-                && usage.estimatedMonthlyCostEur() < limits.monthlyCostCapEur();
+                && usage.estimatedMonthlyCostEur().compareTo(limits.monthlyCostCapEur()) < 0;
 
         int monthlyUsagePercent = requestLimit == 0
                 ? 0
@@ -76,7 +79,7 @@ public class QuotaService {
 
         return "normal";
     }
-    private double roundCost(double value) {
-        return Math.round(value * 1_000_000.0) / 1_000_000.0;
+    private BigDecimal roundCost(BigDecimal value) {
+        return value.setScale(6, RoundingMode.HALF_UP);
     }
 }

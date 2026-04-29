@@ -4,6 +4,7 @@ import com.watchmyai.user.UserContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.YearMonth;
 
@@ -32,7 +33,7 @@ public class UsageService {
     }
 
     @Transactional
-    public void recordRequest(PlanType planType, double estimatedRequestCostEur, boolean premiumRequest) {
+    public void recordRequest(PlanType planType, BigDecimal estimatedRequestCostEur, boolean premiumRequest) {
         UserUsageEntity usage = getOrCreateCurrentUsage(planType);
         usage.setPlanType(planType);
 

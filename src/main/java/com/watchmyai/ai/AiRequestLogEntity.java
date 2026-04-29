@@ -3,6 +3,7 @@ package com.watchmyai.ai;
 import com.watchmyai.quota.PlanType;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -59,8 +60,8 @@ public class AiRequestLogEntity {
     @Column(name = "output_tokens", nullable = false)
     private int outputTokens;
 
-    @Column(name = "estimated_request_cost_eur", nullable = false)
-    private double estimatedRequestCostEur;
+    @Column(name = "estimated_request_cost_eur", nullable = false, precision = 12, scale = 6)
+    private BigDecimal estimatedRequestCostEur;
 
     @Column(name = "request_allowed", nullable = false)
     private boolean requestAllowed;
@@ -71,11 +72,11 @@ public class AiRequestLogEntity {
     @Column(name = "monthly_usage_percent", nullable = false)
     private int monthlyUsagePercent;
 
-    @Column(name = "estimated_monthly_cost_eur", nullable = false)
-    private double estimatedMonthlyCostEur;
+    @Column(name = "estimated_monthly_cost_eur", nullable = false, precision = 12, scale = 6)
+    private BigDecimal estimatedMonthlyCostEur;
 
-    @Column(name = "monthly_cost_cap_eur", nullable = false)
-    private double monthlyCostCapEur;
+    @Column(name = "monthly_cost_cap_eur", nullable = false, precision = 12, scale = 6)
+    private BigDecimal monthlyCostCapEur;
 
     @Column(name = "throttle_state", nullable = false)
     private String throttleState;
@@ -106,12 +107,12 @@ public class AiRequestLogEntity {
         this.answer = null;
         this.inputTokens = 0;
         this.outputTokens = 0;
-        this.estimatedRequestCostEur = 0.0;
+        this.estimatedRequestCostEur = BigDecimal.ZERO;
         this.requestAllowed = false;
         this.remainingRequests = 0;
         this.monthlyUsagePercent = 0;
-        this.estimatedMonthlyCostEur = 0.0;
-        this.monthlyCostCapEur = 0.0;
+        this.estimatedMonthlyCostEur = BigDecimal.ZERO;
+        this.monthlyCostCapEur = BigDecimal.ZERO;
         this.throttleState = "processing";
     }
 
@@ -131,7 +132,7 @@ public class AiRequestLogEntity {
         this.answer = response.answer();
         this.inputTokens = 0;
         this.outputTokens = 0;
-        this.estimatedRequestCostEur = 0.0;
+        this.estimatedRequestCostEur = BigDecimal.ZERO;
         this.requestAllowed = response.requestAllowed();
         this.remainingRequests = response.remainingRequests();
         this.monthlyUsagePercent = response.monthlyUsagePercent();
@@ -187,7 +188,7 @@ public class AiRequestLogEntity {
             AskAIResponse response,
             int inputTokens,
             int outputTokens,
-            double estimatedRequestCostEur
+            BigDecimal estimatedRequestCostEur
     ) {
         this.status = STATUS_COMPLETED;
         this.planType = response.planType();

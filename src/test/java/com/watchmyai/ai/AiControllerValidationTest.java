@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -37,8 +39,8 @@ class AiControllerValidationTest {
                         true,
                         10,
                         10,
-                        0.001,
-                        0.01,
+                        new BigDecimal("0.001000"),
+                        new BigDecimal("0.010000"),
                         "normal"
                 ));
 
