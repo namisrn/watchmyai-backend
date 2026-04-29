@@ -16,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -211,6 +212,36 @@ class AiServiceIdempotencyTest {
         assertThat(response.remainingRequests()).isZero();
 
         verifyNoInteractions(modelRouter, promptBuilder, openAiClient, costEstimatorService);
+        verifyNoInteractions(usageService);
+        verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
+    }
+
+    @Test
+    void askDoesNotRecordUsageWhenOpenAiFails() {
+        AskAIRequest request = validRequest();
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, 0.01);
+        QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
+
+        when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
+                .thenReturn(Optional.empty());
+        when(debugPlanService.getCurrentPlan())
+                .thenReturn(PlanType.FREE);
+        when(quotaService.checkQuota(PlanType.FREE))
+                .thenReturn(initialQuota);
+        when(modelRouter.selectModel(request, PlanType.FREE, false))
+                .thenReturn("gpt-5.4-mini");
+        when(promptBuilder.buildSystemPrompt("short_answer", 180))
+                .thenReturn("system prompt");
+        when(promptBuilder.buildUserPrompt(request))
+                .thenReturn("Hallo");
+        when(openAiClient.ask("gpt-5.4-mini", "system prompt", "Hallo", 180))
+                .thenThrow(new OpenAiClientException("OpenAI-Fehler: invalid_api_key", 401));
+
+        assertThatThrownBy(() -> aiService.ask(request))
+                .isInstanceOf(OpenAiClientException.class)
+                .hasMessage("OpenAI-Fehler: invalid_api_key");
+
+        verifyNoInteractions(costEstimatorService);
         verifyNoInteractions(usageService);
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }

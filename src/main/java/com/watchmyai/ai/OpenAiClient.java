@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Map;
 
 @Component
 public class OpenAiClient {
@@ -29,19 +30,7 @@ public class OpenAiClient {
             return "Mock-Antwort über OpenAiClient. Modell: " + model + ". Frage: " + userPrompt;
         }
 
-        String requestBody = """
-                {
-                  "model": "%s",
-                  "instructions": "%s",
-                  "input": "%s",
-                  "max_output_tokens": %d
-                }
-                """.formatted(
-                escapeJson(model),
-                escapeJson(systemPrompt),
-                escapeJson(userPrompt),
-                maxOutputTokens
-        );
+        String requestBody = buildRequestBody(model, systemPrompt, userPrompt, maxOutputTokens);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.openai.com/v1/responses"))
@@ -57,18 +46,37 @@ public class OpenAiClient {
             );
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                System.out.println("OpenAI error body: " + response.body());
-                return "OpenAI-Fehler: " + response.statusCode();
+                throw new OpenAiClientException(
+                        extractErrorMessage(response.body(), response.statusCode()),
+                        response.statusCode()
+                );
             }
 
             return extractOutputText(response.body());
 
         } catch (IOException exception) {
-            System.out.println("OpenAI IOException: " + exception.getMessage());
-            return "OpenAI-Anfrage fehlgeschlagen.";
+            throw new OpenAiClientException("OpenAI-Anfrage fehlgeschlagen.", exception);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            return "OpenAI-Anfrage wurde unterbrochen.";
+            throw new OpenAiClientException("OpenAI-Anfrage wurde unterbrochen.", exception);
+        }
+    }
+
+    private String buildRequestBody(
+            String model,
+            String systemPrompt,
+            String userPrompt,
+            int maxOutputTokens
+    ) {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                    "model", model,
+                    "instructions", systemPrompt,
+                    "input", userPrompt,
+                    "max_output_tokens", maxOutputTokens
+            ));
+        } catch (RuntimeException exception) {
+            throw new OpenAiClientException("OpenAI-Anfrage konnte nicht vorbereitet werden.", exception);
         }
     }
 
@@ -76,8 +84,8 @@ public class OpenAiClient {
         JsonNode root = objectMapper.readTree(responseBody);
 
         JsonNode outputText = root.get("output_text");
-        if (outputText != null && outputText.isTextual() && !outputText.asText().isBlank()) {
-            return outputText.asText();
+        if (outputText != null && outputText.isString() && !outputText.stringValue().isBlank()) {
+            return outputText.stringValue();
         }
 
         JsonNode output = root.get("output");
@@ -89,8 +97,8 @@ public class OpenAiClient {
                     for (JsonNode contentItem : content) {
                         JsonNode text = contentItem.get("text");
 
-                        if (text != null && text.isTextual() && !text.asText().isBlank()) {
-                            return text.asText();
+                        if (text != null && text.isString() && !text.stringValue().isBlank()) {
+                            return text.stringValue();
                         }
                     }
                 }
@@ -98,18 +106,20 @@ public class OpenAiClient {
         }
 
         System.out.println("OpenAI response without readable text: " + responseBody);
-        return "Keine lesbare Antwort erhalten.";
+        throw new OpenAiClientException("OpenAI lieferte keine lesbare Antwort.", 502);
     }
 
-    private String escapeJson(String value) {
-        if (value == null) {
-            return "";
+    private String extractErrorMessage(String responseBody, int statusCode) {
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode message = root.path("error").path("message");
+
+            if (message.isString() && !message.stringValue().isBlank()) {
+                return "OpenAI-Fehler: " + message.stringValue();
+            }
+        } catch (RuntimeException ignored) {
         }
 
-        return value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
+        return "OpenAI-Fehler: " + statusCode;
     }
 }

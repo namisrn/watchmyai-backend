@@ -1,5 +1,6 @@
 package com.watchmyai.common.api;
 
+import com.watchmyai.ai.OpenAiClientException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,6 +76,24 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(OpenAiClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleOpenAiError(
+            OpenAiClientException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                Instant.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                "Bad Gateway",
+                exception.getMessage(),
+                request.getRequestURI(),
+                extractClientRequestId(request),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
     }
 
     @ExceptionHandler(Exception.class)

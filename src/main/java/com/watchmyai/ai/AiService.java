@@ -162,12 +162,30 @@ public class AiService {
                 quota.limits().maxOutputTokens()
         );
         String userPrompt = promptBuilder.buildUserPrompt(request);
-        String answer = openAiClient.ask(
-                model,
-                systemPrompt,
-                userPrompt,
-                quota.limits().maxOutputTokens()
-        );
+        String answer;
+        try {
+            answer = openAiClient.ask(
+                    model,
+                    systemPrompt,
+                    userPrompt,
+                    quota.limits().maxOutputTokens()
+            );
+        } catch (OpenAiClientException exception) {
+            AskAIResponse failedResponse = new AskAIResponse(
+                    exception.getMessage(),
+                    model,
+                    currentPlan,
+                    false,
+                    quota.remainingRequests(),
+                    quota.monthlyUsagePercent(),
+                    quota.estimatedMonthlyCostEur(),
+                    quota.monthlyCostCapEur(),
+                    "openai_error"
+            );
+
+            completeRequestLog(requestLog, failedResponse, 0, 0, 0.0);
+            throw exception;
+        }
 
         int inputTokens = costEstimatorService.estimateInputTokens(systemPrompt, userPrompt);
         int outputTokens = costEstimatorService.estimateOutputTokens(answer);
