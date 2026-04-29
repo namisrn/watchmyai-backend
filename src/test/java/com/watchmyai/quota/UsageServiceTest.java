@@ -27,16 +27,20 @@ class UsageServiceTest {
     private static final String CURRENT_PERIOD = "2026-04";
 
     private UserUsageRepository userUsageRepository;
+    private UserPlanService userPlanService;
     private UsageService usageService;
 
     @BeforeEach
     void setUp() {
         userUsageRepository = mock(UserUsageRepository.class);
         UserContextService userContextService = mock(UserContextService.class);
+        userPlanService = mock(UserPlanService.class);
         when(userContextService.getCurrentUser())
                 .thenReturn(new UserIdentity(TEST_USER_ID));
+        when(userPlanService.getCurrentPlan())
+                .thenReturn(PlanType.FREE);
 
-        usageService = new UsageService(userUsageRepository, userContextService, FIXED_CLOCK);
+        usageService = new UsageService(userUsageRepository, userContextService, userPlanService, FIXED_CLOCK);
     }
 
     @Test

@@ -13,21 +13,24 @@ public class UsageService {
 
     private final UserUsageRepository userUsageRepository;
     private final UserContextService userContextService;
+    private final UserPlanService userPlanService;
     private final Clock clock;
 
     public UsageService(
             UserUsageRepository userUsageRepository,
             UserContextService userContextService,
+            UserPlanService userPlanService,
             Clock clock
     ) {
         this.userUsageRepository = userUsageRepository;
         this.userContextService = userContextService;
+        this.userPlanService = userPlanService;
         this.clock = clock;
     }
 
     @Transactional
     public UsageSnapshot getCurrentUsage() {
-        UserUsageEntity usage = getOrCreateCurrentUsage(PlanType.FREE);
+        UserUsageEntity usage = getOrCreateCurrentUsage(userPlanService.getCurrentPlan());
 
         return toSnapshot(usage);
     }

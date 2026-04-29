@@ -23,7 +23,7 @@ class QuotaControllerTest {
     private QuotaService quotaService;
 
     @MockitoBean
-    private DebugPlanService debugPlanService;
+    private UserPlanService userPlanService;
 
     @Test
     void statusReturnsCurrentQuotaWithoutInternalLimits() throws Exception {
@@ -48,7 +48,7 @@ class QuotaControllerTest {
                 limits
         );
 
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.PLUS);
         when(quotaService.checkQuota(PlanType.PLUS))
                 .thenReturn(quota);

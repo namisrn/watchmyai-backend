@@ -1,11 +1,11 @@
 package com.watchmyai.ai;
 
-import com.watchmyai.quota.DebugPlanService;
 import com.watchmyai.quota.PlanType;
 import com.watchmyai.quota.QuotaCheckResult;
 import com.watchmyai.quota.QuotaService;
 import com.watchmyai.quota.UsageService;
 import com.watchmyai.quota.CostEstimatorService;
+import com.watchmyai.quota.UserPlanService;
 import com.watchmyai.user.UserContextService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ public class AiService {
     private final OpenAiClient openAiClient;
     private final QuotaService quotaService;
     private final UsageService usageService;
-    private final DebugPlanService debugPlanService;
+    private final UserPlanService userPlanService;
     private final CostEstimatorService costEstimatorService;
     private final AiRequestLogRepository aiRequestLogRepository;
     private final UserContextService userContextService;
@@ -37,7 +37,7 @@ public class AiService {
             OpenAiClient openAiClient,
             QuotaService quotaService,
             UsageService usageService,
-            DebugPlanService debugPlanService,
+            UserPlanService userPlanService,
             CostEstimatorService costEstimatorService,
             AiRequestLogRepository aiRequestLogRepository,
             UserContextService userContextService
@@ -47,7 +47,7 @@ public class AiService {
         this.openAiClient = openAiClient;
         this.quotaService = quotaService;
         this.usageService = usageService;
-        this.debugPlanService = debugPlanService;
+        this.userPlanService = userPlanService;
         this.costEstimatorService = costEstimatorService;
         this.aiRequestLogRepository = aiRequestLogRepository;
         this.userContextService = userContextService;
@@ -69,9 +69,7 @@ public class AiService {
     }
 
     private AskAIResponse reserveAndProcessRequest(AskAIRequest request, String userId) {
-        // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
-        // User identity can be supplied per request while the real authentication layer is still pending.
-        PlanType currentPlan = debugPlanService.getCurrentPlan();
+        PlanType currentPlan = userPlanService.getCurrentPlan();
 
         AiRequestLogEntity requestLog;
         try {

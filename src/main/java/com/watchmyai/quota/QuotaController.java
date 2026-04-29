@@ -9,19 +9,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class QuotaController {
 
     private final QuotaService quotaService;
-    private final DebugPlanService debugPlanService;
+    private final UserPlanService userPlanService;
 
     public QuotaController(
             QuotaService quotaService,
-            DebugPlanService debugPlanService
+            UserPlanService userPlanService
     ) {
         this.quotaService = quotaService;
-        this.debugPlanService = debugPlanService;
+        this.userPlanService = userPlanService;
     }
 
     @GetMapping("/status")
     public QuotaStatusResponse status() {
-        QuotaCheckResult quota = quotaService.checkQuota(debugPlanService.getCurrentPlan());
+        QuotaCheckResult quota = quotaService.checkQuota(userPlanService.getCurrentPlan());
         return QuotaStatusResponse.from(quota);
     }
 }

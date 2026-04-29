@@ -13,36 +13,36 @@ import org.springframework.web.bind.annotation.RestController;
 public class QuotaDebugController {
 
     private final QuotaService quotaService;
-    private final DebugPlanService debugPlanService;
+    private final UserPlanService userPlanService;
 
     public QuotaDebugController(
             QuotaService quotaService,
-            DebugPlanService debugPlanService
+            UserPlanService userPlanService
     ) {
         this.quotaService = quotaService;
-        this.debugPlanService = debugPlanService;
+        this.userPlanService = userPlanService;
     }
 
     @GetMapping
     public QuotaCheckResult debugQuota() {
-        return quotaService.checkQuota(debugPlanService.getCurrentPlan());
+        return quotaService.checkQuota(userPlanService.getCurrentPlan());
     }
 
     @PostMapping("/plan/{planType}")
     public QuotaCheckResult changeDebugPlan(@PathVariable PlanType planType) {
-        debugPlanService.setCurrentPlan(planType);
-        return quotaService.checkQuota(planType);
+        PlanType currentPlan = userPlanService.setCurrentPlan(planType);
+        return quotaService.checkQuota(currentPlan);
     }
 
     @PostMapping("/reset")
     public QuotaCheckResult resetDebugUsage() {
         quotaService.resetUsage();
-        return quotaService.checkQuota(debugPlanService.getCurrentPlan());
+        return quotaService.checkQuota(userPlanService.getCurrentPlan());
     }
 
     @PostMapping("/cost/high")
     public QuotaCheckResult simulateHighCost() {
         quotaService.simulateHighCost();
-        return quotaService.checkQuota(debugPlanService.getCurrentPlan());
+        return quotaService.checkQuota(userPlanService.getCurrentPlan());
     }
 }
