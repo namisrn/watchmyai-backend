@@ -6,10 +6,19 @@ import com.watchmyai.quota.QuotaCheckResult;
 import com.watchmyai.quota.QuotaService;
 import com.watchmyai.quota.UsageService;
 import com.watchmyai.quota.CostEstimatorService;
+import com.watchmyai.user.UserContextService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 
 @Service
 public class AiService {
+
+    private static final Duration DUPLICATE_WAIT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration DUPLICATE_WAIT_INTERVAL = Duration.ofMillis(100);
 
     private final ModelRouter modelRouter;
     private final PromptBuilder promptBuilder;
@@ -18,6 +27,8 @@ public class AiService {
     private final UsageService usageService;
     private final DebugPlanService debugPlanService;
     private final CostEstimatorService costEstimatorService;
+    private final AiRequestLogRepository aiRequestLogRepository;
+    private final UserContextService userContextService;
 
     public AiService(
             ModelRouter modelRouter,
@@ -26,7 +37,9 @@ public class AiService {
             QuotaService quotaService,
             UsageService usageService,
             DebugPlanService debugPlanService,
-            CostEstimatorService costEstimatorService
+            CostEstimatorService costEstimatorService,
+            AiRequestLogRepository aiRequestLogRepository,
+            UserContextService userContextService
     ) {
         this.modelRouter = modelRouter;
         this.promptBuilder = promptBuilder;
@@ -35,16 +48,98 @@ public class AiService {
         this.usageService = usageService;
         this.debugPlanService = debugPlanService;
         this.costEstimatorService = costEstimatorService;
+        this.aiRequestLogRepository = aiRequestLogRepository;
+        this.userContextService = userContextService;
     }
 
     public AskAIResponse ask(AskAIRequest request) {
+        String userId = userContextService.getCurrentUser().userId();
+
+        return findExistingResponse(userId, request.clientRequestId())
+                .orElseGet(() -> reserveAndProcessRequest(request, userId));
+    }
+
+    private Optional<AskAIResponse> findExistingResponse(String userId, String clientRequestId) {
+        return aiRequestLogRepository
+                .findByUserIdAndClientRequestId(userId, clientRequestId)
+                .map(log -> log.isCompleted()
+                        ? log.toResponse()
+                        : waitForCompletedResponse(userId, clientRequestId, log));
+    }
+
+    private AskAIResponse reserveAndProcessRequest(AskAIRequest request, String userId) {
         // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
         // UsageService uses a central development user identity until authentication is introduced.
         PlanType currentPlan = debugPlanService.getCurrentPlan();
+
+        AiRequestLogEntity requestLog;
+        try {
+            requestLog = aiRequestLogRepository.saveAndFlush(
+                    AiRequestLogEntity.processing(
+                            request.clientRequestId(),
+                            userId,
+                            request,
+                            currentPlan
+                    )
+            );
+        } catch (DataIntegrityViolationException exception) {
+            return waitForCompletedResponse(userId, request.clientRequestId(), null);
+        }
+
+        return processReservedRequest(request, currentPlan, requestLog);
+    }
+
+    private AskAIResponse waitForCompletedResponse(
+            String userId,
+            String clientRequestId,
+            AiRequestLogEntity fallbackLog
+    ) {
+        Instant deadline = Instant.now().plus(DUPLICATE_WAIT_TIMEOUT);
+
+        while (Instant.now().isBefore(deadline)) {
+            Optional<AiRequestLogEntity> existingLog = aiRequestLogRepository
+                    .findByUserIdAndClientRequestId(userId, clientRequestId)
+                    .filter(AiRequestLogEntity::isCompleted);
+
+            if (existingLog.isPresent()) {
+                return existingLog.get().toResponse();
+            }
+
+            sleepBeforeRetry();
+        }
+
+        return fallbackLog == null
+                ? new AskAIResponse(
+                "Deine Anfrage wird bereits verarbeitet. Bitte versuche es gleich erneut.",
+                "none",
+                PlanType.FREE,
+                false,
+                0,
+                0,
+                0.0,
+                0.0,
+                "processing"
+        )
+                : fallbackLog.toInProgressResponse();
+    }
+
+    private void sleepBeforeRetry() {
+        try {
+            Thread.sleep(DUPLICATE_WAIT_INTERVAL.toMillis());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private AskAIResponse processReservedRequest(
+            AskAIRequest request,
+            PlanType currentPlan,
+            AiRequestLogEntity requestLog
+    ) {
         QuotaCheckResult quota = quotaService.checkQuota(currentPlan);
 
         if (!quota.requestAllowed()) {
-            return new AskAIResponse(
+            AskAIResponse blockedResponse = new AskAIResponse(
                     "Dein aktuelles Limit ist erreicht. Bitte upgrade oder versuche es später erneut.",
                     "none",
                     currentPlan,
@@ -55,6 +150,9 @@ public class AiService {
                     quota.monthlyCostCapEur(),
                     quota.throttleState()
             );
+
+            completeRequestLog(requestLog, blockedResponse, 0, 0, 0.0);
+            return blockedResponse;
         }
 
         boolean usePremiumModel = shouldUsePremiumModel(request, currentPlan, quota);
@@ -78,7 +176,7 @@ public class AiService {
         usageService.recordRequest(currentPlan, estimatedRequestCostEur, usePremiumModel);
         QuotaCheckResult updatedQuota = quotaService.checkQuota(currentPlan);
 
-        return new AskAIResponse(
+        AskAIResponse response = new AskAIResponse(
                 answer,
                 model,
                 currentPlan,
@@ -89,7 +187,22 @@ public class AiService {
                 updatedQuota.monthlyCostCapEur(),
                 updatedQuota.throttleState()
         );
+
+        completeRequestLog(requestLog, response, inputTokens, outputTokens, estimatedRequestCostEur);
+        return response;
     }
+
+    private void completeRequestLog(
+            AiRequestLogEntity requestLog,
+            AskAIResponse response,
+            int inputTokens,
+            int outputTokens,
+            double estimatedRequestCostEur
+    ) {
+        requestLog.complete(response, inputTokens, outputTokens, estimatedRequestCostEur);
+        aiRequestLogRepository.save(requestLog);
+    }
+
     private boolean shouldUsePremiumModel(
             AskAIRequest request,
             PlanType currentPlan,
