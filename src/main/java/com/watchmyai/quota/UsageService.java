@@ -1,5 +1,6 @@
 package com.watchmyai.quota;
 
+import com.watchmyai.user.UserContextService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,12 +9,15 @@ import java.time.YearMonth;
 @Service
 public class UsageService {
 
-    private static final String DEVELOPMENT_USER_ID = "debug-user";
-
     private final UserUsageRepository userUsageRepository;
+    private final UserContextService userContextService;
 
-    public UsageService(UserUsageRepository userUsageRepository) {
+    public UsageService(
+            UserUsageRepository userUsageRepository,
+            UserContextService userContextService
+    ) {
         this.userUsageRepository = userUsageRepository;
+        this.userContextService = userContextService;
     }
 
     @Transactional
@@ -60,17 +64,12 @@ public class UsageService {
 
     private UserUsageEntity getOrCreateCurrentUsage(PlanType planType) {
         String currentPeriod = YearMonth.now().toString();
-        String userId = getCurrentUserId();
+        String userId = userContextService.getCurrentUser().userId();
 
         return userUsageRepository
                 .findByUserIdAndPeriodYearMonth(userId, currentPeriod)
                 .orElseGet(() -> userUsageRepository.save(
                         new UserUsageEntity(userId, planType, currentPeriod)
                 ));
-    }
-
-    private String getCurrentUserId() {
-        // Development fallback until the real auth/session context is introduced.
-        return DEVELOPMENT_USER_ID;
     }
 }
