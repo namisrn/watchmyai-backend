@@ -12,7 +12,8 @@ public class PlanConfigService {
             PlanType.FREE, new PlanLimits(
                     PlanType.FREE,
                     20,
-                    0,
+                    5,
+                    20,
                     0,
                     180,
                     new BigDecimal("0.01")
@@ -20,6 +21,7 @@ public class PlanConfigService {
             PlanType.PLUS, new PlanLimits(
                     PlanType.PLUS,
                     0,
+                    100,
                     1000,
                     0,
                     300,
@@ -28,6 +30,7 @@ public class PlanConfigService {
             PlanType.PRO, new PlanLimits(
                     PlanType.PRO,
                     0,
+                    200,
                     1500,
                     100,
                     400,

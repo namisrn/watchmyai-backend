@@ -156,7 +156,7 @@ class AiServiceIdempotencyTest {
     @Test
     void askProcessesAndStoresNewAllowedRequest() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
         QuotaCheckResult updatedQuota = quotaResult(true, 14, 30, limits);
 
@@ -192,7 +192,7 @@ class AiServiceIdempotencyTest {
     @Test
     void askStoresBlockedResponseWithoutCallingOpenAiOrRecordingUsage() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult cappedQuota = quotaResult(false, 0, 100, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
@@ -216,7 +216,7 @@ class AiServiceIdempotencyTest {
     @Test
     void askDoesNotRecordUsageWhenOpenAiFails() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
@@ -263,6 +263,11 @@ class AiServiceIdempotencyTest {
                 limits.planType(),
                 requestAllowed,
                 remainingRequests,
+                Math.min(remainingRequests, limits.dailyRequestLimit()),
+                limits.dailyRequestLimit(),
+                monthlyUsagePercent,
+                remainingRequests,
+                limits.monthlyRequestLimit(),
                 0,
                 limits.monthlyPremiumRequestLimit(),
                 monthlyUsagePercent,

@@ -60,6 +60,7 @@ class UsageServiceTest {
         UsageSnapshot snapshot = usageService.getCurrentUsage();
 
         assertThat(snapshot.usedLifetimeRequests()).isEqualTo(5);
+        assertThat(snapshot.usedDailyRequests()).isZero();
         assertThat(snapshot.usedMonthlyRequests()).isZero();
         assertThat(snapshot.usedPremiumRequests()).isZero();
         assertThat(snapshot.estimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.002000"));
@@ -82,7 +83,8 @@ class UsageServiceTest {
         usageService.recordRequest(PlanType.FREE, new BigDecimal("0.001000"), false);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(6);
-        assertThat(existingUsage.getUsedMonthlyRequests()).isZero();
+        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
+        assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
         assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.003000"));
     }
@@ -101,6 +103,7 @@ class UsageServiceTest {
         usageService.recordRequest(PlanType.PLUS, new BigDecimal("0.005000"), false);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
+        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
         assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.007000"));
@@ -120,6 +123,7 @@ class UsageServiceTest {
         usageService.recordRequest(PlanType.PRO, new BigDecimal("0.020000"), true);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
+        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isEqualTo(1);
         assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.022000"));
