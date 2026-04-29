@@ -6,7 +6,6 @@ import com.watchmyai.config.OpenAiProperties;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -33,7 +32,7 @@ public class OpenAiClient {
         String requestBody = buildRequestBody(model, systemPrompt, userPrompt, maxOutputTokens);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.openai.com/v1/responses"))
+                .uri(openAiProperties.responsesUrl())
                 .header("Authorization", "Bearer " + openAiProperties.apiKey())
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
