@@ -2,6 +2,7 @@ package com.watchmyai.quota;
 
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Service
@@ -14,7 +15,7 @@ public class PlanConfigService {
                     0,
                     0,
                     180,
-                    0.01
+                    new BigDecimal("0.01")
             ),
             PlanType.PLUS, new PlanLimits(
                     PlanType.PLUS,
@@ -22,7 +23,7 @@ public class PlanConfigService {
                     1000,
                     0,
                     300,
-                    2.00
+                    new BigDecimal("2.00")
             ),
             PlanType.PRO, new PlanLimits(
                     PlanType.PRO,
@@ -30,7 +31,7 @@ public class PlanConfigService {
                     1500,
                     100,
                     400,
-                    4.50
+                    new BigDecimal("4.50")
             )
     );
 

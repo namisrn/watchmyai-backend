@@ -10,6 +10,7 @@ import com.watchmyai.user.UserContextService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -69,7 +70,7 @@ public class AiService {
 
     private AskAIResponse reserveAndProcessRequest(AskAIRequest request, String userId) {
         // Development fallback: current plan is controlled through DebugPlanService until subscriptions are integrated.
-        // UsageService uses a central development user identity until authentication is introduced.
+        // User identity can be supplied per request while the real authentication layer is still pending.
         PlanType currentPlan = debugPlanService.getCurrentPlan();
 
         AiRequestLogEntity requestLog;
@@ -116,8 +117,8 @@ public class AiService {
                 false,
                 0,
                 0,
-                0.0,
-                0.0,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 "processing"
         )
                 : fallbackLog.toInProgressResponse();
@@ -151,7 +152,7 @@ public class AiService {
                     quota.throttleState()
             );
 
-            completeRequestLog(requestLog, blockedResponse, 0, 0, 0.0);
+            completeRequestLog(requestLog, blockedResponse, 0, 0, BigDecimal.ZERO);
             return blockedResponse;
         }
 
@@ -162,9 +163,9 @@ public class AiService {
                 quota.limits().maxOutputTokens()
         );
         String userPrompt = promptBuilder.buildUserPrompt(request);
-        String answer;
+        OpenAiResponse openAiResponse;
         try {
-            answer = openAiClient.ask(
+            openAiResponse = openAiClient.ask(
                     model,
                     systemPrompt,
                     userPrompt,
@@ -183,13 +184,14 @@ public class AiService {
                     "openai_error"
             );
 
-            completeRequestLog(requestLog, failedResponse, 0, 0, 0.0);
+            completeRequestLog(requestLog, failedResponse, 0, 0, BigDecimal.ZERO);
             throw exception;
         }
 
-        int inputTokens = costEstimatorService.estimateInputTokens(systemPrompt, userPrompt);
-        int outputTokens = costEstimatorService.estimateOutputTokens(answer);
-        double estimatedRequestCostEur = costEstimatorService.estimateCostEur(model, inputTokens, outputTokens);
+        String answer = openAiResponse.answer();
+        int inputTokens = openAiResponse.inputTokens();
+        int outputTokens = openAiResponse.outputTokens();
+        BigDecimal estimatedRequestCostEur = costEstimatorService.estimateCostEur(model, inputTokens, outputTokens);
 
         usageService.recordRequest(currentPlan, estimatedRequestCostEur, usePremiumModel);
         QuotaCheckResult updatedQuota = quotaService.checkQuota(currentPlan);
@@ -215,7 +217,7 @@ public class AiService {
             AskAIResponse response,
             int inputTokens,
             int outputTokens,
-            double estimatedRequestCostEur
+            BigDecimal estimatedRequestCostEur
     ) {
         requestLog.complete(response, inputTokens, outputTokens, estimatedRequestCostEur);
         aiRequestLogRepository.save(requestLog);

@@ -12,6 +12,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -49,8 +50,8 @@ public class UserUsageEntity {
     @Column(name = "used_premium_requests", nullable = false)
     private int usedPremiumRequests;
 
-    @Column(name = "estimated_monthly_cost_eur", nullable = false)
-    private double estimatedMonthlyCostEur;
+    @Column(name = "estimated_monthly_cost_eur", nullable = false, precision = 12, scale = 6)
+    private BigDecimal estimatedMonthlyCostEur;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -68,7 +69,7 @@ public class UserUsageEntity {
         this.usedLifetimeRequests = 5;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
-        this.estimatedMonthlyCostEur = 0.002;
+        this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
     }
 
     @PrePersist
@@ -119,7 +120,7 @@ public class UserUsageEntity {
         return usedPremiumRequests;
     }
 
-    public double getEstimatedMonthlyCostEur() {
+    public BigDecimal getEstimatedMonthlyCostEur() {
         return estimatedMonthlyCostEur;
     }
 
@@ -139,18 +140,18 @@ public class UserUsageEntity {
         this.usedPremiumRequests++;
     }
 
-    public void addEstimatedMonthlyCostEur(double costEur) {
-        this.estimatedMonthlyCostEur += costEur;
+    public void addEstimatedMonthlyCostEur(BigDecimal costEur) {
+        this.estimatedMonthlyCostEur = this.estimatedMonthlyCostEur.add(costEur);
     }
 
     public void reset() {
         this.usedLifetimeRequests = 5;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
-        this.estimatedMonthlyCostEur = 0.002;
+        this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
     }
 
     public void simulateHighCost() {
-        this.estimatedMonthlyCostEur = 99.0;
+        this.estimatedMonthlyCostEur = new BigDecimal("99.000000");
     }
 }

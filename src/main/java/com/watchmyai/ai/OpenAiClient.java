@@ -24,9 +24,14 @@ public class OpenAiClient {
         this.httpClient = HttpClient.newHttpClient();
     }
 
-    public String ask(String model, String systemPrompt, String userPrompt, int maxOutputTokens) {
+    public OpenAiResponse ask(String model, String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (!openAiProperties.hasApiKey()) {
-            return "Mock-Antwort über OpenAiClient. Modell: " + model + ". Frage: " + userPrompt;
+            String mockAnswer = "Mock-Antwort über OpenAiClient. Modell: " + model + ". Frage: " + userPrompt;
+            return new OpenAiResponse(
+                    mockAnswer,
+                    estimateTokens(systemPrompt) + estimateTokens(userPrompt),
+                    estimateTokens(mockAnswer)
+            );
         }
 
         String requestBody = buildRequestBody(model, systemPrompt, userPrompt, maxOutputTokens);
@@ -51,7 +56,14 @@ public class OpenAiClient {
                 );
             }
 
-            return extractOutputText(response.body());
+            JsonNode root = objectMapper.readTree(response.body());
+            String answer = extractOutputText(root, response.body());
+
+            return new OpenAiResponse(
+                    answer,
+                    extractTokenCount(root, "input_tokens", estimateTokens(systemPrompt) + estimateTokens(userPrompt)),
+                    extractTokenCount(root, "output_tokens", estimateTokens(answer))
+            );
 
         } catch (IOException exception) {
             throw new OpenAiClientException("OpenAI-Anfrage fehlgeschlagen.", exception);
@@ -79,9 +91,7 @@ public class OpenAiClient {
         }
     }
 
-    private String extractOutputText(String responseBody) throws IOException {
-        JsonNode root = objectMapper.readTree(responseBody);
-
+    private String extractOutputText(JsonNode root, String responseBody) {
         JsonNode outputText = root.get("output_text");
         if (outputText != null && outputText.isString() && !outputText.stringValue().isBlank()) {
             return outputText.stringValue();
@@ -106,6 +116,28 @@ public class OpenAiClient {
 
         System.out.println("OpenAI response without readable text: " + responseBody);
         throw new OpenAiClientException("OpenAI lieferte keine lesbare Antwort.", 502);
+    }
+
+    private int extractTokenCount(JsonNode root, String fieldName, int fallback) {
+        JsonNode usage = root.get("usage");
+        if (usage == null) {
+            return fallback;
+        }
+
+        JsonNode tokenCount = usage.get(fieldName);
+        if (tokenCount == null || !tokenCount.isNumber()) {
+            return fallback;
+        }
+
+        return Math.max(0, tokenCount.intValue());
+    }
+
+    private int estimateTokens(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+
+        return Math.max(1, (int) Math.ceil(text.length() / 4.0));
     }
 
     private String extractErrorMessage(String responseBody, int statusCode) {

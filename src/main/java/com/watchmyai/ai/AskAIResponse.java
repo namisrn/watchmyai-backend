@@ -2,6 +2,8 @@ package com.watchmyai.ai;
 
 import com.watchmyai.quota.PlanType;
 
+import java.math.BigDecimal;
+
 public record AskAIResponse(
         String answer,
         String modelUsed,
@@ -9,8 +11,8 @@ public record AskAIResponse(
         boolean requestAllowed,
         int remainingRequests,
         int monthlyUsagePercent,
-        double estimatedMonthlyCostEur,
-        double monthlyCostCapEur,
+        BigDecimal estimatedMonthlyCostEur,
+        BigDecimal monthlyCostCapEur,
         String throttleState
 ) {
 }

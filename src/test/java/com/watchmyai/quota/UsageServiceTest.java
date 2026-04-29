@@ -5,13 +5,13 @@ import com.watchmyai.user.UserIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.offset;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -58,7 +58,7 @@ class UsageServiceTest {
         assertThat(snapshot.usedLifetimeRequests()).isEqualTo(5);
         assertThat(snapshot.usedMonthlyRequests()).isZero();
         assertThat(snapshot.usedPremiumRequests()).isZero();
-        assertThat(snapshot.estimatedMonthlyCostEur()).isCloseTo(0.002, offset(0.000001));
+        assertThat(snapshot.estimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.002000"));
 
         verify(userUsageRepository).findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD);
         verify(userUsageRepository).save(any(UserUsageEntity.class));
@@ -75,12 +75,12 @@ class UsageServiceTest {
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
                 .thenReturn(Optional.of(existingUsage));
 
-        usageService.recordRequest(PlanType.FREE, 0.001, false);
+        usageService.recordRequest(PlanType.FREE, new BigDecimal("0.001000"), false);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(6);
         assertThat(existingUsage.getUsedMonthlyRequests()).isZero();
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isCloseTo(0.003, offset(0.000001));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.003000"));
     }
 
     @Test
@@ -94,12 +94,12 @@ class UsageServiceTest {
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
                 .thenReturn(Optional.of(existingUsage));
 
-        usageService.recordRequest(PlanType.PLUS, 0.005, false);
+        usageService.recordRequest(PlanType.PLUS, new BigDecimal("0.005000"), false);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isCloseTo(0.007, offset(0.000001));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.007000"));
     }
 
     @Test
@@ -113,11 +113,11 @@ class UsageServiceTest {
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
                 .thenReturn(Optional.of(existingUsage));
 
-        usageService.recordRequest(PlanType.PRO, 0.02, true);
+        usageService.recordRequest(PlanType.PRO, new BigDecimal("0.020000"), true);
 
         assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isEqualTo(1);
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isCloseTo(0.022, offset(0.000001));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.022000"));
     }
 }
