@@ -9,13 +9,16 @@ import java.net.URI;
 public class OpenAiProperties {
 
     private final String apiKey;
+    private final boolean mockEnabled;
     private final URI responsesUrl;
 
     public OpenAiProperties(
             @Value("${OPENAI_API_KEY:}") String apiKey,
+            @Value("${watchmyai.openai.mock-enabled:${WATCHMYAI_OPENAI_MOCK_ENABLED:false}}") boolean mockEnabled,
             @Value("${watchmyai.openai.responses-url:https://api.openai.com/v1/responses}") String responsesUrl
     ) {
         this.apiKey = apiKey;
+        this.mockEnabled = mockEnabled;
         this.responsesUrl = URI.create(responsesUrl);
     }
 
@@ -25,6 +28,10 @@ public class OpenAiProperties {
 
     public boolean hasApiKey() {
         return apiKey != null && !apiKey.isBlank();
+    }
+
+    public boolean mockEnabled() {
+        return mockEnabled;
     }
 
     public URI responsesUrl() {
