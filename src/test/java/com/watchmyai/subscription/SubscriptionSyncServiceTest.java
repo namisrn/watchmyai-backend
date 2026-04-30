@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doNothing;
 
 class SubscriptionSyncServiceTest {
 
@@ -16,7 +17,8 @@ class SubscriptionSyncServiceTest {
         UserPlanService userPlanService = mock(UserPlanService.class);
         SubscriptionSyncService service = new SubscriptionSyncService(
                 new SubscriptionProductCatalog(),
-                userPlanService
+                userPlanService,
+                appStoreServerService()
         );
 
         SubscriptionStatusResponse response = service.sync(new SubscriptionSyncRequest(
@@ -24,13 +26,13 @@ class SubscriptionSyncServiceTest {
                 "transaction-1",
                 "original-1",
                 "sandbox",
-                "signed-jws"
+                "header.payload.signature"
         ));
 
         assertThat(response.planType()).isEqualTo(PlanType.PRO);
         assertThat(response.productId()).isEqualTo("watchmyai.pro.monthly");
         assertThat(response.verified()).isFalse();
-        assertThat(response.verificationSource()).isEqualTo("client_verified");
+        assertThat(response.verificationSource()).isEqualTo("storekit_jws_received");
         assertThat(response.transactionId()).isEqualTo("transaction-1");
         verify(userPlanService).setCurrentPlan(PlanType.PRO);
     }
@@ -39,7 +41,8 @@ class SubscriptionSyncServiceTest {
     void syncRejectsUnknownProduct() {
         SubscriptionSyncService service = new SubscriptionSyncService(
                 new SubscriptionProductCatalog(),
-                mock(UserPlanService.class)
+                mock(UserPlanService.class),
+                appStoreServerService()
         );
 
         assertThatThrownBy(() -> service.sync(new SubscriptionSyncRequest(
@@ -47,9 +50,15 @@ class SubscriptionSyncServiceTest {
                 "transaction-1",
                 "original-1",
                 "sandbox",
-                "signed-jws"
+                "header.payload.signature"
         )))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown subscription product.");
+    }
+
+    private AppStoreServerService appStoreServerService() {
+        AppStoreServerService service = mock(AppStoreServerService.class);
+        doNothing().when(service).verifyClientTransactionPayload("header.payload.signature");
+        return service;
     }
 }

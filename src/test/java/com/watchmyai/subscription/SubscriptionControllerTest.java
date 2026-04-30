@@ -45,7 +45,7 @@ class SubscriptionControllerTest {
                         PlanType.PRO,
                         "watchmyai.pro.monthly",
                         false,
-                        "client_verified",
+                        "storekit_jws_received",
                         "transaction-1",
                         "original-1",
                         "sandbox"
@@ -59,11 +59,11 @@ class SubscriptionControllerTest {
                                   "transactionId": "transaction-1",
                                   "originalTransactionId": "original-1",
                                   "environment": "sandbox",
-                                  "signedTransactionInfo": "signed-jws"
+                                  "signedTransactionInfo": "header.payload.signature"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.planType").value("PRO"))
-                .andExpect(jsonPath("$.verificationSource").value("client_verified"));
+                .andExpect(jsonPath("$.verificationSource").value("storekit_jws_received"));
     }
 }

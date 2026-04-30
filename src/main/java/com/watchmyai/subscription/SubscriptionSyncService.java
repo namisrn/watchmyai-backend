@@ -10,13 +10,16 @@ public class SubscriptionSyncService {
 
     private final SubscriptionProductCatalog productCatalog;
     private final UserPlanService userPlanService;
+    private final AppStoreServerService appStoreServerService;
 
     public SubscriptionSyncService(
             SubscriptionProductCatalog productCatalog,
-            UserPlanService userPlanService
+            UserPlanService userPlanService,
+            AppStoreServerService appStoreServerService
     ) {
         this.productCatalog = productCatalog;
         this.userPlanService = userPlanService;
+        this.appStoreServerService = appStoreServerService;
     }
 
     @Transactional
@@ -25,13 +28,14 @@ public class SubscriptionSyncService {
                 .findPlanType(request.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
 
+        appStoreServerService.verifyClientTransactionPayload(request.signedTransactionInfo());
         userPlanService.setCurrentPlan(planType);
 
         return new SubscriptionStatusResponse(
                 planType,
                 request.productId(),
                 false,
-                "client_verified",
+                "storekit_jws_received",
                 request.transactionId(),
                 request.originalTransactionId(),
                 request.environment()
