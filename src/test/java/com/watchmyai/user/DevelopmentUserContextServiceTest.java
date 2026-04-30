@@ -39,6 +39,20 @@ class DevelopmentUserContextServiceTest {
     }
 
     @Test
+    void getCurrentUserAcceptsRequestHeaderUserWhenDevIsDefaultProfile() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader(DevelopmentUserContextService.USER_ID_HEADER))
+                .thenReturn("user-123");
+        ObjectProvider<HttpServletRequest> requestProvider = mock(ObjectProvider.class);
+        when(requestProvider.getIfAvailable()).thenReturn(request);
+        DevelopmentUserContextService service = newService(requestProvider, new String[]{}, new String[]{"dev"});
+
+        UserIdentity currentUser = service.getCurrentUser();
+
+        assertThat(currentUser.userId()).isEqualTo("user-123");
+    }
+
+    @Test
     void getCurrentUserRejectsUnsafeRequestHeaderUser() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader(DevelopmentUserContextService.USER_ID_HEADER))
@@ -77,6 +91,8 @@ class DevelopmentUserContextServiceTest {
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles())
                 .thenReturn(new String[]{"prod"});
+        when(environment.getDefaultProfiles())
+                .thenReturn(new String[]{"default"});
         DevelopmentUserContextService service = new DevelopmentUserContextService(
                 requestProvider,
                 tokenVerifier,
@@ -92,10 +108,20 @@ class DevelopmentUserContextServiceTest {
             ObjectProvider<HttpServletRequest> requestProvider,
             String activeProfile
     ) {
+        return newService(requestProvider, new String[]{activeProfile}, new String[]{"default"});
+    }
+
+    private DevelopmentUserContextService newService(
+            ObjectProvider<HttpServletRequest> requestProvider,
+            String[] activeProfiles,
+            String[] defaultProfiles
+    ) {
         AppleIdentityTokenVerifier tokenVerifier = mock(AppleIdentityTokenVerifier.class);
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles())
-                .thenReturn(new String[]{activeProfile});
+                .thenReturn(activeProfiles);
+        when(environment.getDefaultProfiles())
+                .thenReturn(defaultProfiles);
 
         return new DevelopmentUserContextService(requestProvider, tokenVerifier, environment);
     }

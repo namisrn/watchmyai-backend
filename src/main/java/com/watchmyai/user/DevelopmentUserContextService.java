@@ -66,6 +66,8 @@ public class DevelopmentUserContextService implements UserContextService {
 
     private boolean isDevelopmentProfile() {
         return Arrays.asList(environment.getActiveProfiles()).contains("dev")
-                || Arrays.asList(environment.getActiveProfiles()).contains("test");
+                || Arrays.asList(environment.getActiveProfiles()).contains("test")
+                || Arrays.asList(environment.getDefaultProfiles()).contains("dev")
+                || Arrays.asList(environment.getDefaultProfiles()).contains("test");
     }
 }
