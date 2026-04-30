@@ -10,3 +10,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+watchmyai:
+  auth:
+    apple:
+      issuer: https://appleid.apple.com
+      jwks-url: https://appleid.apple.com/auth/keys
+      audience: ${APPLE_CLIENT_ID:}

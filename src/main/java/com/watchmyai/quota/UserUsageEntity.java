@@ -41,8 +41,14 @@ public class UserUsageEntity {
     @Column(name = "period_year_month", nullable = false)
     private String periodYearMonth;
 
+    @Column(name = "period_day", nullable = false)
+    private String periodDay;
+
     @Column(name = "used_lifetime_requests", nullable = false)
     private int usedLifetimeRequests;
+
+    @Column(name = "used_daily_requests", nullable = false)
+    private int usedDailyRequests;
 
     @Column(name = "used_monthly_requests", nullable = false)
     private int usedMonthlyRequests;
@@ -63,10 +69,16 @@ public class UserUsageEntity {
     }
 
     public UserUsageEntity(String userId, PlanType planType, String periodYearMonth) {
+        this(userId, planType, periodYearMonth, periodYearMonth + "-01");
+    }
+
+    public UserUsageEntity(String userId, PlanType planType, String periodYearMonth, String periodDay) {
         this.userId = userId;
         this.planType = planType;
         this.periodYearMonth = periodYearMonth;
+        this.periodDay = periodDay;
         this.usedLifetimeRequests = 5;
+        this.usedDailyRequests = 0;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
         this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
@@ -100,6 +112,10 @@ public class UserUsageEntity {
         return periodYearMonth;
     }
 
+    public String getPeriodDay() {
+        return periodDay;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -110,6 +126,10 @@ public class UserUsageEntity {
 
     public int getUsedLifetimeRequests() {
         return usedLifetimeRequests;
+    }
+
+    public int getUsedDailyRequests() {
+        return usedDailyRequests;
     }
 
     public int getUsedMonthlyRequests() {
@@ -132,6 +152,10 @@ public class UserUsageEntity {
         this.usedLifetimeRequests++;
     }
 
+    public void incrementDailyRequests() {
+        this.usedDailyRequests++;
+    }
+
     public void incrementMonthlyRequests() {
         this.usedMonthlyRequests++;
     }
@@ -146,6 +170,7 @@ public class UserUsageEntity {
 
     public void reset() {
         this.usedLifetimeRequests = 5;
+        this.usedDailyRequests = 0;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
         this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
@@ -153,5 +178,10 @@ public class UserUsageEntity {
 
     public void simulateHighCost() {
         this.estimatedMonthlyCostEur = new BigDecimal("99.000000");
+    }
+
+    public void resetDailyUsage(String periodDay) {
+        this.periodDay = periodDay;
+        this.usedDailyRequests = 0;
     }
 }

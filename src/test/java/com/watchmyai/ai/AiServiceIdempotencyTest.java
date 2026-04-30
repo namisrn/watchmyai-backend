@@ -1,7 +1,7 @@
 package com.watchmyai.ai;
 
 import com.watchmyai.quota.CostEstimatorService;
-import com.watchmyai.quota.DebugPlanService;
+import com.watchmyai.quota.UserPlanService;
 import com.watchmyai.quota.PlanLimits;
 import com.watchmyai.quota.PlanType;
 import com.watchmyai.quota.QuotaCheckResult;
@@ -37,7 +37,7 @@ class AiServiceIdempotencyTest {
     private OpenAiClient openAiClient;
     private QuotaService quotaService;
     private UsageService usageService;
-    private DebugPlanService debugPlanService;
+    private UserPlanService userPlanService;
     private CostEstimatorService costEstimatorService;
     private AiRequestLogRepository aiRequestLogRepository;
     private AiService aiService;
@@ -49,7 +49,7 @@ class AiServiceIdempotencyTest {
         openAiClient = mock(OpenAiClient.class);
         quotaService = mock(QuotaService.class);
         usageService = mock(UsageService.class);
-        debugPlanService = mock(DebugPlanService.class);
+        userPlanService = mock(UserPlanService.class);
         costEstimatorService = mock(CostEstimatorService.class);
         aiRequestLogRepository = mock(AiRequestLogRepository.class);
         UserContextService userContextService = mock(UserContextService.class);
@@ -65,7 +65,7 @@ class AiServiceIdempotencyTest {
                 openAiClient,
                 quotaService,
                 usageService,
-                debugPlanService,
+                userPlanService,
                 costEstimatorService,
                 aiRequestLogRepository,
                 userContextService
@@ -105,7 +105,7 @@ class AiServiceIdempotencyTest {
                 openAiClient,
                 quotaService,
                 usageService,
-                debugPlanService,
+                userPlanService,
                 costEstimatorService
         );
         verify(aiRequestLogRepository, never()).save(any(AiRequestLogEntity.class));
@@ -134,7 +134,7 @@ class AiServiceIdempotencyTest {
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
                 .thenReturn(Optional.empty(), Optional.of(storedLog));
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.FREE);
         doThrow(new DataIntegrityViolationException("duplicate client request id"))
                 .when(aiRequestLogRepository)
@@ -156,13 +156,13 @@ class AiServiceIdempotencyTest {
     @Test
     void askProcessesAndStoresNewAllowedRequest() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
         QuotaCheckResult updatedQuota = quotaResult(true, 14, 30, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
                 .thenReturn(Optional.empty());
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.FREE);
         when(quotaService.checkQuota(PlanType.FREE))
                 .thenReturn(initialQuota, updatedQuota);
@@ -192,12 +192,12 @@ class AiServiceIdempotencyTest {
     @Test
     void askStoresBlockedResponseWithoutCallingOpenAiOrRecordingUsage() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult cappedQuota = quotaResult(false, 0, 100, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
                 .thenReturn(Optional.empty());
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.FREE);
         when(quotaService.checkQuota(PlanType.FREE))
                 .thenReturn(cappedQuota);
@@ -216,12 +216,12 @@ class AiServiceIdempotencyTest {
     @Test
     void askDoesNotRecordUsageWhenOpenAiFails() {
         AskAIRequest request = validRequest();
-        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 0, 0, 180, new BigDecimal("0.010000"));
+        PlanLimits limits = new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
         QuotaCheckResult initialQuota = quotaResult(true, 15, 25, limits);
 
         when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
                 .thenReturn(Optional.empty());
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.FREE);
         when(quotaService.checkQuota(PlanType.FREE))
                 .thenReturn(initialQuota);
@@ -263,6 +263,11 @@ class AiServiceIdempotencyTest {
                 limits.planType(),
                 requestAllowed,
                 remainingRequests,
+                Math.min(remainingRequests, limits.dailyRequestLimit()),
+                limits.dailyRequestLimit(),
+                monthlyUsagePercent,
+                remainingRequests,
+                limits.monthlyRequestLimit(),
                 0,
                 limits.monthlyPremiumRequestLimit(),
                 monthlyUsagePercent,

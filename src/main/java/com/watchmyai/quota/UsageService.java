@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 @Service
@@ -13,21 +14,24 @@ public class UsageService {
 
     private final UserUsageRepository userUsageRepository;
     private final UserContextService userContextService;
+    private final UserPlanService userPlanService;
     private final Clock clock;
 
     public UsageService(
             UserUsageRepository userUsageRepository,
             UserContextService userContextService,
+            UserPlanService userPlanService,
             Clock clock
     ) {
         this.userUsageRepository = userUsageRepository;
         this.userContextService = userContextService;
+        this.userPlanService = userPlanService;
         this.clock = clock;
     }
 
     @Transactional
     public UsageSnapshot getCurrentUsage() {
-        UserUsageEntity usage = getOrCreateCurrentUsage(PlanType.FREE);
+        UserUsageEntity usage = getOrCreateCurrentUsage(userPlanService.getCurrentPlan());
 
         return toSnapshot(usage);
     }
@@ -36,11 +40,11 @@ public class UsageService {
     public void recordRequest(PlanType planType, BigDecimal estimatedRequestCostEur, boolean premiumRequest) {
         UserUsageEntity usage = getOrCreateCurrentUsage(planType);
         usage.setPlanType(planType);
+        usage.incrementDailyRequests();
+        usage.incrementMonthlyRequests();
 
         if (planType == PlanType.FREE) {
             usage.incrementLifetimeRequests();
-        } else {
-            usage.incrementMonthlyRequests();
         }
 
         if (premiumRequest) {
@@ -65,16 +69,26 @@ public class UsageService {
     private UserUsageEntity getOrCreateCurrentUsage(PlanType planType) {
         String userId = getCurrentUserId();
         String periodYearMonth = getCurrentPeriodYearMonth();
+        String periodDay = getCurrentPeriodDay();
 
         return userUsageRepository
                 .findByUserIdAndPeriodYearMonth(userId, periodYearMonth)
-                .orElseGet(() -> createUsage(userId, planType, periodYearMonth));
+                .map(usage -> resetDailyUsageIfNeeded(usage, periodDay))
+                .orElseGet(() -> createUsage(userId, planType, periodYearMonth, periodDay));
     }
 
-    private UserUsageEntity createUsage(String userId, PlanType planType, String periodYearMonth) {
+    private UserUsageEntity createUsage(String userId, PlanType planType, String periodYearMonth, String periodDay) {
         return userUsageRepository.save(
-                new UserUsageEntity(userId, planType, periodYearMonth)
+                new UserUsageEntity(userId, planType, periodYearMonth, periodDay)
         );
+    }
+
+    private UserUsageEntity resetDailyUsageIfNeeded(UserUsageEntity usage, String periodDay) {
+        if (!periodDay.equals(usage.getPeriodDay())) {
+            usage.resetDailyUsage(periodDay);
+        }
+
+        return usage;
     }
 
     private String getCurrentUserId() {
@@ -85,9 +99,14 @@ public class UsageService {
         return YearMonth.now(clock).toString();
     }
 
+    private String getCurrentPeriodDay() {
+        return LocalDate.now(clock).toString();
+    }
+
     private UsageSnapshot toSnapshot(UserUsageEntity usage) {
         return new UsageSnapshot(
                 usage.getUsedLifetimeRequests(),
+                usage.getUsedDailyRequests(),
                 usage.getUsedMonthlyRequests(),
                 usage.getUsedPremiumRequests(),
                 usage.getEstimatedMonthlyCostEur()

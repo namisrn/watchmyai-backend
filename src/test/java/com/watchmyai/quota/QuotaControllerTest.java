@@ -23,13 +23,14 @@ class QuotaControllerTest {
     private QuotaService quotaService;
 
     @MockitoBean
-    private DebugPlanService debugPlanService;
+    private UserPlanService userPlanService;
 
     @Test
     void statusReturnsCurrentQuotaWithoutInternalLimits() throws Exception {
         PlanLimits limits = new PlanLimits(
                 PlanType.PLUS,
                 0,
+                100,
                 1000,
                 0,
                 300,
@@ -39,6 +40,11 @@ class QuotaControllerTest {
                 PlanType.PLUS,
                 true,
                 734,
+                74,
+                100,
+                26,
+                734,
+                1000,
                 0,
                 0,
                 26,
@@ -48,7 +54,7 @@ class QuotaControllerTest {
                 limits
         );
 
-        when(debugPlanService.getCurrentPlan())
+        when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.PLUS);
         when(quotaService.checkQuota(PlanType.PLUS))
                 .thenReturn(quota);
@@ -58,6 +64,11 @@ class QuotaControllerTest {
                 .andExpect(jsonPath("$.planType").value("PLUS"))
                 .andExpect(jsonPath("$.requestAllowed").value(true))
                 .andExpect(jsonPath("$.remainingRequests").value(734))
+                .andExpect(jsonPath("$.dailyRemainingRequests").value(74))
+                .andExpect(jsonPath("$.dailyRequestLimit").value(100))
+                .andExpect(jsonPath("$.dailyUsagePercent").value(26))
+                .andExpect(jsonPath("$.monthlyRemainingRequests").value(734))
+                .andExpect(jsonPath("$.monthlyRequestLimit").value(1000))
                 .andExpect(jsonPath("$.monthlyUsagePercent").value(26))
                 .andExpect(jsonPath("$.estimatedMonthlyCostEur").value(0.52))
                 .andExpect(jsonPath("$.monthlyCostCapEur").value(2.00))

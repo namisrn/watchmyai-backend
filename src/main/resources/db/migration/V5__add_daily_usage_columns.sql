@@ -1,0 +1,5 @@
+ALTER TABLE user_usage
+    ADD COLUMN period_day VARCHAR(10) NOT NULL DEFAULT '1970-01-01';
+
+ALTER TABLE user_usage
+    ADD COLUMN used_daily_requests INTEGER NOT NULL DEFAULT 0;

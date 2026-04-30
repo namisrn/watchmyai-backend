@@ -26,6 +26,10 @@ public class OpenAiClient {
 
     public OpenAiResponse ask(String model, String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (!openAiProperties.hasApiKey()) {
+            if (!openAiProperties.mockEnabled()) {
+                throw new OpenAiClientException("OPENAI_API_KEY fehlt im Backend.", 503);
+            }
+
             String mockAnswer = "Mock-Antwort über OpenAiClient. Modell: " + model + ". Frage: " + userPrompt;
             return new OpenAiResponse(
                     mockAnswer,
