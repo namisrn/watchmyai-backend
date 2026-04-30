@@ -106,7 +106,7 @@ public class AppleIdentityTokenVerifier {
         }
 
         String audience = stringClaim(claims, "aud");
-        if (!appleAuthProperties.audience().equals(audience)) {
+        if (!appleAuthProperties.acceptsAudience(audience)) {
             throw new AuthenticationRequiredException("Apple identity token audience is invalid.");
         }
 
