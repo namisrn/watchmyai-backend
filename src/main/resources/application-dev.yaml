@@ -13,3 +13,7 @@ spring:
     defer-datasource-initialization: false
     hibernate:
       ddl-auto: validate
+
+watchmyai:
+  debug:
+    endpoints-enabled: true

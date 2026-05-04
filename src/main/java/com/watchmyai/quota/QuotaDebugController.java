@@ -1,6 +1,7 @@
 package com.watchmyai.quota;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @Profile("dev")
+@ConditionalOnProperty(value = "watchmyai.debug.endpoints-enabled", havingValue = "true")
 @RestController
 @RequestMapping("/api/v1/quota/debug")
 public class QuotaDebugController {

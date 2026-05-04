@@ -84,11 +84,18 @@ public class GlobalExceptionHandler {
             OpenAiClientException exception,
             HttpServletRequest request
     ) {
+        String userSafeMessage = switch (exception.statusCode()) {
+            case 401, 403 -> "AI provider authentication failed.";
+            case 429 -> "AI provider rate limit reached. Please try again shortly.";
+            case 500, 502, 503, 504 -> "AI provider is temporarily unavailable.";
+            default -> "AI provider request failed.";
+        };
+
         ApiErrorResponse response = new ApiErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_GATEWAY.value(),
                 "Bad Gateway",
-                exception.getMessage(),
+                userSafeMessage,
                 request.getRequestURI(),
                 extractClientRequestId(request),
                 List.of()

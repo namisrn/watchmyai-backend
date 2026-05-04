@@ -34,4 +34,16 @@ class OpenAiClientTest {
 
         assertThat(response.answer()).contains("Mock-Antwort");
     }
+
+    @Test
+    void sanitizesProviderMessageWithApiKey() {
+        String sanitized = OpenAiClient.sanitizeProviderMessage(
+                "Incorrect API key provided: sk-abc123456789. Use Bearer sk-secret-token."
+        );
+
+        assertThat(sanitized).doesNotContain("sk-abc123456789");
+        assertThat(sanitized).doesNotContain("sk-secret-token");
+        assertThat(sanitized).contains("sk-***");
+        assertThat(sanitized).contains("Bearer ***");
+    }
 }
