@@ -30,7 +30,11 @@ public class UserPlanService {
 
     @Transactional
     public PlanType setCurrentPlan(PlanType planType) {
-        String userId = userContextService.getCurrentUser().userId();
+        return setCurrentPlanForUser(userContextService.getCurrentUser().userId(), planType);
+    }
+
+    @Transactional
+    public PlanType setCurrentPlanForUser(String userId, PlanType planType) {
         UserPlanEntity userPlan = userPlanRepository
                 .findByUserId(userId)
                 .orElseGet(() -> new UserPlanEntity(userId, planType));

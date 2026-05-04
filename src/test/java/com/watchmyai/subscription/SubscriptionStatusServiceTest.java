@@ -1,41 +1,36 @@
 package com.watchmyai.subscription;
 
 import com.watchmyai.quota.PlanType;
-import com.watchmyai.quota.UserPlanService;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class SubscriptionStatusServiceTest {
 
     @Test
     void getCurrentStatusReturnsCurrentPaidPlanProduct() {
-        UserPlanService userPlanService = mock(UserPlanService.class);
-        when(userPlanService.getCurrentPlan())
-                .thenReturn(PlanType.PRO);
-        SubscriptionStatusService service = new SubscriptionStatusService(
-                userPlanService,
-                new SubscriptionProductCatalog()
-        );
+        SubscriptionEntitlementService entitlementService = mock(SubscriptionEntitlementService.class);
+        doReturn(new SubscriptionStatusResponse(PlanType.PRO, "watchmyai.pro.monthly", true))
+                .when(entitlementService)
+                .getCurrentStatus();
+        SubscriptionStatusService service = new SubscriptionStatusService(entitlementService);
 
         SubscriptionStatusResponse status = service.getCurrentStatus();
 
         assertThat(status.planType()).isEqualTo(PlanType.PRO);
         assertThat(status.productId()).isEqualTo("watchmyai.pro.monthly");
-        assertThat(status.verified()).isFalse();
+        assertThat(status.verified()).isTrue();
     }
 
     @Test
     void getCurrentStatusReturnsFreeAsVerifiedFallback() {
-        UserPlanService userPlanService = mock(UserPlanService.class);
-        when(userPlanService.getCurrentPlan())
-                .thenReturn(PlanType.FREE);
-        SubscriptionStatusService service = new SubscriptionStatusService(
-                userPlanService,
-                new SubscriptionProductCatalog()
-        );
+        SubscriptionEntitlementService entitlementService = mock(SubscriptionEntitlementService.class);
+        doReturn(new SubscriptionStatusResponse(PlanType.FREE, null, true))
+                .when(entitlementService)
+                .getCurrentStatus();
+        SubscriptionStatusService service = new SubscriptionStatusService(entitlementService);
 
         SubscriptionStatusResponse status = service.getCurrentStatus();
 

@@ -40,22 +40,28 @@ public class AppStoreServerService {
     }
 
     public AppStoreNotificationResponse acceptNotification(AppStoreNotificationRequest request) {
-        ensureJwsShape(request.signedPayload());
+        verifyNotificationPayload(request.signedPayload());
+
+        return new AppStoreNotificationResponse(
+                true,
+                signedDataVerifier == null ? "jws_shape_only" : "app_store_server_library"
+        );
+    }
+
+    public ResponseBodyV2DecodedPayload verifyNotificationPayload(String signedPayload) {
+        ensureJwsShape(signedPayload);
 
         if (signedDataVerifier == null) {
-            return new AppStoreNotificationResponse(true, "jws_shape_only");
+            return null;
         }
 
-        ResponseBodyV2DecodedPayload payload = verifyNotification(request.signedPayload());
+        ResponseBodyV2DecodedPayload payload = verifyNotification(signedPayload);
         Data data = payload.getData();
         if (data != null) {
             verifyNestedData(data);
         }
 
-        return new AppStoreNotificationResponse(
-                true,
-                "app_store_server_library"
-        );
+        return payload;
     }
 
     public VerificationResult verifyClientTransactionPayload(String signedTransactionInfo) {
