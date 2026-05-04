@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AppStoreServerServiceTest {
 
     @Test
-    void statusReportsProductionReadiness() {
+    void statusReportsProductionReadinessFromProperties() {
         AppStoreServerService service = new AppStoreServerService(new AppStoreServerProperties(
                 "com.sasanrafatnami.WatchMyAI",
                 123456789L,
@@ -17,13 +17,13 @@ class AppStoreServerServiceTest {
                 "key",
                 "private-key",
                 "SANDBOX",
-                true
+                false
         ));
 
         AppStoreServerStatusResponse status = service.status();
 
         assertThat(status.credentialsConfigured()).isTrue();
-        assertThat(status.productionReady()).isTrue();
+        assertThat(status.productionReady()).isFalse();
     }
 
     @Test

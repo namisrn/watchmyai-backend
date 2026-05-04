@@ -6,9 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.doNothing;
 
 class SubscriptionSyncServiceTest {
 
@@ -32,7 +32,7 @@ class SubscriptionSyncServiceTest {
         assertThat(response.planType()).isEqualTo(PlanType.PRO);
         assertThat(response.productId()).isEqualTo("watchmyai.pro.monthly");
         assertThat(response.verified()).isFalse();
-        assertThat(response.verificationSource()).isEqualTo("storekit_jws_received");
+        assertThat(response.verificationSource()).isEqualTo("jws_shape_only");
         assertThat(response.transactionId()).isEqualTo("transaction-1");
         verify(userPlanService).setCurrentPlan(PlanType.PRO);
     }
@@ -58,7 +58,9 @@ class SubscriptionSyncServiceTest {
 
     private AppStoreServerService appStoreServerService() {
         AppStoreServerService service = mock(AppStoreServerService.class);
-        doNothing().when(service).verifyClientTransactionPayload("header.payload.signature");
+        doReturn(AppStoreServerService.VerificationResult.jwsShapeOnly())
+                .when(service)
+                .verifyClientTransactionPayload("header.payload.signature");
         return service;
     }
 }

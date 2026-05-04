@@ -24,21 +24,37 @@ public class SubscriptionSyncService {
 
     @Transactional
     public SubscriptionStatusResponse sync(SubscriptionSyncRequest request) {
+        AppStoreServerService.VerificationResult verificationResult =
+                appStoreServerService.verifyClientTransactionPayload(request.signedTransactionInfo());
+
+        String sourceProductId = request.productId();
+        String sourceTransactionId = request.transactionId();
+        String sourceOriginalTransactionId = request.originalTransactionId();
+        String sourceEnvironment = request.environment();
+
+        if (verificationResult.verified()) {
+            sourceProductId = verificationResult.payload().getProductId();
+            sourceTransactionId = verificationResult.payload().getTransactionId();
+            sourceOriginalTransactionId = verificationResult.payload().getOriginalTransactionId();
+            sourceEnvironment = verificationResult.payload().getEnvironment() != null
+                    ? verificationResult.payload().getEnvironment().toString()
+                    : sourceEnvironment;
+        }
+
         PlanType planType = productCatalog
-                .findPlanType(request.productId())
+                .findPlanType(sourceProductId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
 
-        appStoreServerService.verifyClientTransactionPayload(request.signedTransactionInfo());
         userPlanService.setCurrentPlan(planType);
 
         return new SubscriptionStatusResponse(
                 planType,
-                request.productId(),
-                false,
-                "storekit_jws_received",
-                request.transactionId(),
-                request.originalTransactionId(),
-                request.environment()
+                sourceProductId,
+                verificationResult.verified(),
+                verificationResult.verificationSource(),
+                sourceTransactionId,
+                sourceOriginalTransactionId,
+                sourceEnvironment
         );
     }
 }
