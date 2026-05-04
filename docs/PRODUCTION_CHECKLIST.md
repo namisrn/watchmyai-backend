@@ -11,6 +11,8 @@
 
 ## Required Environment
 
+-   Production startup now validates the required secrets with `ProductionSecretsValidator`.
+-   Use `.env.production.example` as the deployment template. Keep real values in the host secret manager only.
 -   `OPENAI_API_KEY`
 -   `APPLE_CLIENT_ID=com.sasanrafatnami.WatchMyAI`
 -   `APP_STORE_BUNDLE_ID=com.sasanrafatnami.WatchMyAI`
@@ -20,6 +22,18 @@
 -   `APP_STORE_PRIVATE_KEY`
 -   `APP_STORE_ENVIRONMENT=SANDBOX` for TestFlight, `PRODUCTION` for release
 -   `APP_STORE_VERIFICATION_ENABLED=true` after App Store Server credentials are set
+
+## Production Startup Gate
+
+With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
+
+-   `OPENAI_API_KEY` is present and OpenAI mock mode is disabled.
+-   `APPLE_CLIENT_ID` contains `com.sasanrafatnami.WatchMyAI`.
+-   `APP_STORE_BUNDLE_ID` is `com.sasanrafatnami.WatchMyAI`.
+-   `APP_STORE_APP_APPLE_ID` is a positive numeric App Store Connect app ID.
+-   `APP_STORE_ISSUER_ID`, `APP_STORE_KEY_ID`, and the full `.p8` `APP_STORE_PRIVATE_KEY` are present.
+-   `APP_STORE_ENVIRONMENT` is `SANDBOX` for TestFlight or `PRODUCTION` for release.
+-   `APP_STORE_VERIFICATION_ENABLED=true`.
 
 ## App Store Server API
 
