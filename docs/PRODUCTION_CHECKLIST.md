@@ -1,5 +1,14 @@
 # WatchMyAI Production Checklist
 
+## Current Implementation Status
+
+-   Backend stores verified subscription entitlement state in `app_store_subscription`.
+-   `/api/v1/subscription/sync` verifies App Store transaction JWS when verification is enabled and stores the entitlement before updating the user plan.
+-   `/api/v1/app-store/notifications` accepts App Store Server Notifications V2, verifies nested transaction data, and updates the user plan for renewal, expiration, refund, grace, billing retry, upgrade, and downgrade states.
+-   Production profile exposes health/readiness endpoints through Spring Boot Actuator.
+-   `/api/v1/ai/ask` has an in-memory per-user/per-IP rate limit for the first production pass.
+-   Debug plan manipulation remains disabled in `prod`.
+
 ## Required Environment
 
 -   `OPENAI_API_KEY`
@@ -31,14 +40,18 @@
 ## App Store Connect
 
 -   Create subscriptions:
-    -   `watchmyai.plus.monthly`
-    -   `watchmyai.pro.monthly`
+    -   Plus: `watchmyai.plus.monthly`, `2,99 EUR / month`
+    -   Pro: `watchmyai.pro.monthly`, `6,99 EUR / month`
+    -   Rank Pro higher than Plus in the subscription group.
 -   Add App Store Server Notifications V2 URL:
     -   `https://<api-domain>/api/v1/app-store/notifications`
 -   Add privacy text for:
     -   Apple account identifier
     -   purchase/subscription status
     -   AI prompts and generated answers
+-   Add Terms of Use and Privacy Policy URLs. The frontend currently points to:
+    -   `https://watchmyai.app/privacy`
+    -   `https://watchmyai.app/terms`
 
 ## Monitoring
 
@@ -52,6 +65,19 @@
     -   App Store verification failures
     -   backend 5xx spike
 -   Every response includes `X-Request-Id`; include this ID in support/debug notes.
+-   For VPS production, add external uptime checks for:
+    -   `GET /actuator/health`
+    -   `GET /actuator/health/readiness`
+
+## Remaining Release Tasks
+
+-   Replace `https://api.watchmyai.app` in Release build settings if the final API domain is different.
+-   Put all required backend secrets into the production host environment.
+-   Set `APP_STORE_VERIFICATION_ENABLED=true` only after App Store Server credentials are valid.
+-   Run a TestFlight sandbox purchase for Plus and Pro, then Restore Purchases.
+-   Confirm App Store Server Notifications arrive in backend logs and update `/api/v1/subscription/status`.
+-   Confirm rate limits match the final Free/Plus/Pro product limits before App Review.
+-   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
 
 ## Release Gates
 
