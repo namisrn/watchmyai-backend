@@ -10,6 +10,7 @@ public record ApiErrorResponse(
         String message,
         String path,
         String clientRequestId,
+        String requestId,
         List<ApiFieldError> fieldErrors
 ) {
 }

@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
                 "Request validation failed.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 fieldErrors
         );
 
@@ -55,6 +56,7 @@ public class GlobalExceptionHandler {
                 "Malformed JSON request.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -73,6 +75,7 @@ public class GlobalExceptionHandler {
                 exception.getMessage(),
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -98,6 +101,7 @@ public class GlobalExceptionHandler {
                 userSafeMessage,
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -116,6 +120,7 @@ public class GlobalExceptionHandler {
                 exception.getMessage(),
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -134,6 +139,7 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -148,12 +154,21 @@ public class GlobalExceptionHandler {
     }
 
     private String extractClientRequestId(HttpServletRequest request) {
-        String clientRequestId = request.getHeader("X-Client-Request-Id");
+        String clientRequestId = request.getHeader(RequestCorrelation.CLIENT_REQUEST_ID_HEADER);
 
         if (clientRequestId == null || clientRequestId.isBlank()) {
             return null;
         }
 
         return clientRequestId;
+    }
+
+    private String extractRequestId(HttpServletRequest request) {
+        Object requestId = request.getAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE);
+        if (requestId instanceof String value && !value.isBlank()) {
+            return value;
+        }
+
+        return RequestCorrelation.currentRequestId();
     }
 }
