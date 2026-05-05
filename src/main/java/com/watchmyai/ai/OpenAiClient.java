@@ -3,6 +3,8 @@ package com.watchmyai.ai;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.watchmyai.config.OpenAiProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -14,6 +16,7 @@ import java.util.Map;
 @Component
 public class OpenAiClient {
 
+    private static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
     private final OpenAiProperties openAiProperties;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -150,11 +153,21 @@ public class OpenAiClient {
             JsonNode message = root.path("error").path("message");
 
             if (message.isString() && !message.stringValue().isBlank()) {
-                return "OpenAI-Fehler: " + message.stringValue();
+                String providerMessage = sanitizeProviderMessage(message.stringValue());
+                log.warn("OpenAI provider error {}: {}", statusCode, providerMessage);
+                return "OpenAI-Fehler: " + providerMessage;
             }
         } catch (RuntimeException ignored) {
         }
 
+        log.warn("OpenAI provider error {} without structured message.", statusCode);
         return "OpenAI-Fehler: " + statusCode;
+    }
+
+    static String sanitizeProviderMessage(String rawMessage) {
+        String message = rawMessage == null ? "" : rawMessage;
+        message = message.replaceAll("sk-[A-Za-z0-9_\\-]+", "sk-***");
+        message = message.replaceAll("Bearer\\s+[A-Za-z0-9_\\-\\.]+", "Bearer ***");
+        return message;
     }
 }

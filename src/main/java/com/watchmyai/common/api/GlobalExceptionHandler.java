@@ -37,6 +37,7 @@ public class GlobalExceptionHandler {
                 "Request validation failed.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 fieldErrors
         );
 
@@ -55,6 +56,7 @@ public class GlobalExceptionHandler {
                 "Malformed JSON request.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -73,6 +75,7 @@ public class GlobalExceptionHandler {
                 exception.getMessage(),
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -84,13 +87,21 @@ public class GlobalExceptionHandler {
             OpenAiClientException exception,
             HttpServletRequest request
     ) {
+        String userSafeMessage = switch (exception.statusCode()) {
+            case 401, 403 -> "AI provider authentication failed.";
+            case 429 -> "AI provider rate limit reached. Please try again shortly.";
+            case 500, 502, 503, 504 -> "AI provider is temporarily unavailable.";
+            default -> "AI provider request failed.";
+        };
+
         ApiErrorResponse response = new ApiErrorResponse(
                 Instant.now(),
                 HttpStatus.BAD_GATEWAY.value(),
                 "Bad Gateway",
-                exception.getMessage(),
+                userSafeMessage,
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -109,6 +120,7 @@ public class GlobalExceptionHandler {
                 exception.getMessage(),
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -127,6 +139,7 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred.",
                 request.getRequestURI(),
                 extractClientRequestId(request),
+                extractRequestId(request),
                 List.of()
         );
 
@@ -141,12 +154,21 @@ public class GlobalExceptionHandler {
     }
 
     private String extractClientRequestId(HttpServletRequest request) {
-        String clientRequestId = request.getHeader("X-Client-Request-Id");
+        String clientRequestId = request.getHeader(RequestCorrelation.CLIENT_REQUEST_ID_HEADER);
 
         if (clientRequestId == null || clientRequestId.isBlank()) {
             return null;
         }
 
         return clientRequestId;
+    }
+
+    private String extractRequestId(HttpServletRequest request) {
+        Object requestId = request.getAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE);
+        if (requestId instanceof String value && !value.isBlank()) {
+            return value;
+        }
+
+        return RequestCorrelation.currentRequestId();
     }
 }

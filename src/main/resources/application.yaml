@@ -12,6 +12,8 @@ spring:
         format_sql: true
 
 watchmyai:
+  debug:
+    endpoints-enabled: false
   auth:
     apple:
       issuer: https://appleid.apple.com
