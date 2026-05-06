@@ -13,6 +13,7 @@
 
 -   Production startup now validates the required secrets with `ProductionSecretsValidator`.
 -   Use `.env.production.example` as the deployment template. Keep real values in the host secret manager only.
+-   `SPRING_PROFILES_ACTIVE=prod`
 -   `OPENAI_API_KEY`
 -   `APPLE_CLIENT_ID=com.sasanrafatnami.WatchMyAI`
 -   `APP_STORE_BUNDLE_ID=com.sasanrafatnami.WatchMyAI`
@@ -85,6 +86,8 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 
 ## Remaining Release Tasks
 
+-   Redeploy the image that includes commit `e9a5baf` or newer.
+-   Confirm the live backend runs with `SPRING_PROFILES_ACTIVE=prod`.
 -   Replace `https://api.watchmyai.app` in Release build settings if the final API domain is different.
 -   Put all required backend secrets into the production host environment.
 -   Set `APP_STORE_VERIFICATION_ENABLED=true` only after App Store Server credentials are valid.

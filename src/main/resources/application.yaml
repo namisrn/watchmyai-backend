@@ -18,4 +18,7 @@ watchmyai:
     apple:
       issuer: https://appleid.apple.com
       jwks-url: https://appleid.apple.com/auth/keys
-      audience: ${APPLE_CLIENT_ID:}
+      # Ohne Audience schlagen alle Bearer-Anfragen (iPhone + Watch) fehl. Auf dem VPS war
+      # APPLE_CLIENT_ID oft unset — Default = App-Bundle + WatchKit-Extension (JWT aud).
+      # Überschreiben: APPLE_CLIENT_ID=com.sasanrafatnami.WatchMyAI[,weitere]
+      audience: ${APPLE_CLIENT_ID:com.sasanrafatnami.WatchMyAI,com.sasanrafatnami.WatchMyAI.watchkitapp}
