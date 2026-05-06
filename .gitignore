@@ -36,3 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 CODEX_PROJECT_CONTEXT.local.md
+
+# Deployment/build artifacts
+*.tar.gz
+*.tgz

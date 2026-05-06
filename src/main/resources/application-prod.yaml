@@ -28,3 +28,6 @@ management:
 watchmyai:
   debug:
     endpoints-enabled: false
+  auth:
+    apple:
+      audience: ${APPLE_CLIENT_ID:}

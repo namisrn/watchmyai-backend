@@ -27,6 +27,24 @@ class AppStoreServerServiceTest {
     }
 
     @Test
+    void createsVerifierWithClasspathAppleRootCertificates() {
+        AppStoreServerService service = new AppStoreServerService(new AppStoreServerProperties(
+                "com.sasanrafatnami.WatchMyAI",
+                123456789L,
+                "issuer",
+                "key",
+                "private-key",
+                "SANDBOX",
+                true
+        ));
+
+        AppStoreServerStatusResponse status = service.status();
+
+        assertThat(status.credentialsConfigured()).isTrue();
+        assertThat(status.productionReady()).isTrue();
+    }
+
+    @Test
     void rejectsMalformedSignedPayload() {
         AppStoreServerService service = new AppStoreServerService(new AppStoreServerProperties(
                 "com.sasanrafatnami.WatchMyAI",
