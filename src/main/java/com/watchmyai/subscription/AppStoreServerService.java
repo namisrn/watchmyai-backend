@@ -8,12 +8,8 @@ import com.apple.itunes.storekit.verification.SignedDataVerifier;
 import com.apple.itunes.storekit.verification.VerificationException;
 import com.watchmyai.config.AppStoreServerProperties;
 import org.springframework.stereotype.Service;
-
-import java.io.ByteArrayInputStream;
+import org.springframework.core.io.ClassPathResource;
 import java.io.InputStream;
-import java.security.KeyStore;
-import java.security.cert.X509Certificate;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -114,10 +110,10 @@ public class AppStoreServerService {
             return null;
         }
 
-        Set<InputStream> roots = loadAppleRootsFromDefaultTrustStore();
+        Set<InputStream> roots = loadAppleRootsFromClasspath();
         if (roots.isEmpty()) {
             throw new IllegalStateException(
-                    "App Store verification enabled but no Apple root certificates found in default trust store."
+                    "App Store verification enabled but no Apple root certificates found in classpath resources."
             );
         }
 
@@ -146,35 +142,15 @@ public class AppStoreServerService {
         };
     }
 
-    private Set<InputStream> loadAppleRootsFromDefaultTrustStore() {
-        Set<InputStream> roots = new HashSet<>();
+    private Set<InputStream> loadAppleRootsFromClasspath() {
         try {
-            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            String cacerts = System.getProperty("java.home") + "/lib/security/cacerts";
-            try (InputStream in = java.nio.file.Files.newInputStream(java.nio.file.Paths.get(cacerts))) {
-                trustStore.load(in, "changeit".toCharArray());
-            }
-
-            java.util.Enumeration<String> aliases = trustStore.aliases();
-            while (aliases.hasMoreElements()) {
-                String alias = aliases.nextElement();
-                java.security.cert.Certificate certificate = trustStore.getCertificate(alias);
-                if (!(certificate instanceof X509Certificate x509)) {
-                    continue;
-                }
-
-                String principal = x509.getSubjectX500Principal().getName().toLowerCase(Locale.ROOT);
-                if (!principal.contains("apple root ca")) {
-                    continue;
-                }
-
-                roots.add(new ByteArrayInputStream(x509.getEncoded()));
-            }
+            return Set.of(
+                    new ClassPathResource("apple/AppleRootCA-G3.cer").getInputStream(),
+                    new ClassPathResource("apple/AppleRootCA-G2.cer").getInputStream()
+            );
         } catch (Exception ex) {
-            throw new IllegalStateException("Unable to load Apple root certificates for App Store verification.", ex);
+            throw new IllegalStateException("Unable to load Apple root certificates from classpath resources.", ex);
         }
-
-        return roots;
     }
 
     public record VerificationResult(

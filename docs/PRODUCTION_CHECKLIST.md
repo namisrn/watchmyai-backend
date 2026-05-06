@@ -8,6 +8,9 @@
 -   Production profile exposes health/readiness endpoints through Spring Boot Actuator.
 -   `/api/v1/ai/ask` has an in-memory per-user/per-IP rate limit for the first production pass.
 -   Debug plan manipulation remains disabled in `prod`.
+-   Live deployment at `https://api.watchmyai.app` reports health `UP`.
+-   Live App Store Server status reports `verificationEnabled=true`, `credentialsConfigured=true`, and `productionReady=true`.
+-   Apple root certificates are bundled as classpath resources under `src/main/resources/apple/`.
 
 ## Required Environment
 
@@ -86,15 +89,12 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 
 ## Remaining Release Tasks
 
--   Redeploy the image that includes commit `e9a5baf` or newer.
--   Confirm the live backend runs with `SPRING_PROFILES_ACTIVE=prod`.
--   Replace `https://api.watchmyai.app` in Release build settings if the final API domain is different.
--   Put all required backend secrets into the production host environment.
--   Set `APP_STORE_VERIFICATION_ENABLED=true` only after App Store Server credentials are valid.
 -   Run a TestFlight sandbox purchase for Plus and Pro, then Restore Purchases.
 -   Confirm App Store Server Notifications arrive in backend logs and update `/api/v1/subscription/status`.
+-   Confirm `/api/v1/subscription/sync` receives real `signedTransactionInfo` from StoreKit after purchase/restore.
 -   Confirm rate limits match the final Free/Plus/Pro product limits before App Review.
 -   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
+-   Before App Store release, switch `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
 
 ## Release Gates
 
