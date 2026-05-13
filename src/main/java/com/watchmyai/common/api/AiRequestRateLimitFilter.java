@@ -5,9 +5,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.MediaType;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -16,6 +20,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,13 +35,18 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
     private static final int MAX_REQUESTS_PER_WINDOW = 30;
 
     private final Clock clock;
+    private final StringRedisTemplate redisTemplate;
+    private final Environment environment;
     private final ConcurrentHashMap<String, WindowCounter> counters = new ConcurrentHashMap<>();
 
-    public AiRequestRateLimitFilter() {
+    public AiRequestRateLimitFilter(ObjectProvider<StringRedisTemplate> redisTemplateProvider, Environment environment) {
         this.clock = Clock.systemUTC();
+        this.redisTemplate = redisTemplateProvider.getIfAvailable();
+        this.environment = environment;
     }
 
     @Override
+    @SuppressWarnings("NullableProblems")
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
@@ -60,6 +71,33 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean allowRequest(String key) {
+        if (redisTemplate == null) {
+            if (isProductionProfile()) {
+                throw new IllegalStateException("Redis rate limiter is required in prod.");
+            }
+            return allowRequestInMemory(key);
+        }
+
+        if (isDevelopmentProfile()) {
+            return allowRequestInMemory(key);
+        }
+
+        try {
+            String redisKey = redisKey(key);
+            Long count = redisTemplate.opsForValue().increment(redisKey);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(redisKey, Duration.ofSeconds(WINDOW_SECONDS + 5));
+            }
+            return count != null && count <= MAX_REQUESTS_PER_WINDOW;
+        } catch (DataAccessException exception) {
+            if (isDevelopmentProfile()) {
+                return allowRequestInMemory(key);
+            }
+            throw exception;
+        }
+    }
+
+    private boolean allowRequestInMemory(String key) {
         long windowStart = Instant.now(clock).getEpochSecond() / WINDOW_SECONDS;
         WindowCounter counter = counters.compute(key, (ignored, existing) -> {
             if (existing == null || existing.windowStart != windowStart) {
@@ -71,15 +109,31 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
         return counter.count.incrementAndGet() <= MAX_REQUESTS_PER_WINDOW;
     }
 
+    private boolean isDevelopmentProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("dev")
+                || Arrays.asList(environment.getActiveProfiles()).contains("test");
+    }
+
+    private boolean isProductionProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("prod");
+    }
+
+    private String redisKey(String key) {
+        long windowStart = Instant.now(clock).getEpochSecond() / WINDOW_SECONDS;
+        return "watchmyai:rate-limit:ai-ask:" + stableHash(key) + ":" + windowStart;
+    }
+
     private String resolveKey(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {
             return "bearer:" + stableHash(authorization);
         }
 
-        String developmentUser = request.getHeader(DevelopmentUserContextService.USER_ID_HEADER);
-        if (developmentUser != null && !developmentUser.isBlank()) {
-            return "dev:" + developmentUser.trim();
+        if (isDevelopmentProfile()) {
+            String developmentUser = request.getHeader(DevelopmentUserContextService.USER_ID_HEADER);
+            if (developmentUser != null && !developmentUser.isBlank()) {
+                return "dev:" + developmentUser.trim();
+            }
         }
 
         return "ip:" + request.getRemoteAddr();

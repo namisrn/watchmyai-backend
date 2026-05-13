@@ -18,19 +18,26 @@ public class ProductionSecretsValidator implements ApplicationRunner {
 
     private final OpenAiProperties openAiProperties;
     private final AppleAuthProperties appleAuthProperties;
+    private final AppleSignInServerProperties appleSignInServerProperties;
     private final AppStoreServerProperties appStoreServerProperties;
+    private final RedisProperties redisProperties;
 
     public ProductionSecretsValidator(
             OpenAiProperties openAiProperties,
             AppleAuthProperties appleAuthProperties,
-            AppStoreServerProperties appStoreServerProperties
+            AppleSignInServerProperties appleSignInServerProperties,
+            AppStoreServerProperties appStoreServerProperties,
+            RedisProperties redisProperties
     ) {
         this.openAiProperties = openAiProperties;
         this.appleAuthProperties = appleAuthProperties;
+        this.appleSignInServerProperties = appleSignInServerProperties;
         this.appStoreServerProperties = appStoreServerProperties;
+        this.redisProperties = redisProperties;
     }
 
     @Override
+    @SuppressWarnings("NullableProblems")
     public void run(ApplicationArguments args) {
         List<String> errors = validate();
         if (!errors.isEmpty()) {
@@ -55,6 +62,11 @@ public class ProductionSecretsValidator implements ApplicationRunner {
         } else if (!appleAuthProperties.acceptsAudience(EXPECTED_APPLE_CLIENT_ID)) {
             errors.add("APPLE_CLIENT_ID must include " + EXPECTED_APPLE_CLIENT_ID + ".");
         }
+        if (!appleSignInServerProperties.hasServerCredentials()) {
+            errors.add("APPLE_TEAM_ID, APPLE_SIGNIN_KEY_ID, and APPLE_SIGNIN_PRIVATE_KEY must be set.");
+        } else if (!looksLikePrivateKey(appleSignInServerProperties.privateKey())) {
+            errors.add("APPLE_SIGNIN_PRIVATE_KEY must contain the full .p8 private key including BEGIN/END PRIVATE KEY.");
+        }
 
         if (!EXPECTED_BUNDLE_ID.equals(appStoreServerProperties.bundleId())) {
             errors.add("APP_STORE_BUNDLE_ID must be " + EXPECTED_BUNDLE_ID + ".");
@@ -73,10 +85,14 @@ public class ProductionSecretsValidator implements ApplicationRunner {
         if (!appStoreServerProperties.verificationEnabled()) {
             errors.add("APP_STORE_VERIFICATION_ENABLED must be true in prod.");
         }
+        if (!redisProperties.hasUrl()) {
+            errors.add("REDIS_URL must be set in prod.");
+        }
 
         return errors;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private boolean looksLikePrivateKey(String privateKey) {
         if (privateKey == null || privateKey.isBlank()) {
             return false;

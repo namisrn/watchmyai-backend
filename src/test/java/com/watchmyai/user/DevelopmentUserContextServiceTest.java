@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -39,7 +41,7 @@ class DevelopmentUserContextServiceTest {
     }
 
     @Test
-    void getCurrentUserAcceptsRequestHeaderUserWhenDevIsDefaultProfile() {
+    void getCurrentUserRejectsRequestHeaderUserWhenOnlyDevIsDefaultProfile() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader(DevelopmentUserContextService.USER_ID_HEADER))
                 .thenReturn("user-123");
@@ -47,9 +49,9 @@ class DevelopmentUserContextServiceTest {
         when(requestProvider.getIfAvailable()).thenReturn(request);
         DevelopmentUserContextService service = newService(requestProvider, new String[]{}, new String[]{"dev"});
 
-        UserIdentity currentUser = service.getCurrentUser();
-
-        assertThat(currentUser.userId()).isEqualTo("user-123");
+        assertThatThrownBy(service::getCurrentUser)
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("Authentication is required.");
     }
 
     @Test
@@ -82,12 +84,15 @@ class DevelopmentUserContextServiceTest {
     void getCurrentUserReturnsAppleSubjectForBearerToken() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader("Authorization"))
-                .thenReturn("Bearer apple-token");
+                .thenReturn("Bearer session-token");
         ObjectProvider<HttpServletRequest> requestProvider = mock(ObjectProvider.class);
         when(requestProvider.getIfAvailable()).thenReturn(request);
-        AppleIdentityTokenVerifier tokenVerifier = mock(AppleIdentityTokenVerifier.class);
-        when(tokenVerifier.verify("apple-token"))
-                .thenReturn(new AppleUserIdentity("apple-subject", "user@example.com"));
+        AppSessionService appSessionService = mock(AppSessionService.class);
+        when(appSessionService.resolveIdentity("session-token"))
+                .thenReturn(Optional.of(new UserIdentity(
+                        "apple:apple-subject",
+                        "de305d54-75b4-431b-adb2-eb6b9e546014"
+                )));
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles())
                 .thenReturn(new String[]{"prod"});
@@ -95,13 +100,14 @@ class DevelopmentUserContextServiceTest {
                 .thenReturn(new String[]{"default"});
         DevelopmentUserContextService service = new DevelopmentUserContextService(
                 requestProvider,
-                tokenVerifier,
+                appSessionService,
                 environment
         );
 
         UserIdentity currentUser = service.getCurrentUser();
 
         assertThat(currentUser.userId()).isEqualTo("apple:apple-subject");
+        assertThat(currentUser.appAccountToken()).isEqualTo("de305d54-75b4-431b-adb2-eb6b9e546014");
     }
 
     private DevelopmentUserContextService newService(
@@ -116,13 +122,13 @@ class DevelopmentUserContextServiceTest {
             String[] activeProfiles,
             String[] defaultProfiles
     ) {
-        AppleIdentityTokenVerifier tokenVerifier = mock(AppleIdentityTokenVerifier.class);
+        AppSessionService appSessionService = mock(AppSessionService.class);
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles())
                 .thenReturn(activeProfiles);
         when(environment.getDefaultProfiles())
                 .thenReturn(defaultProfiles);
 
-        return new DevelopmentUserContextService(requestProvider, tokenVerifier, environment);
+        return new DevelopmentUserContextService(requestProvider, appSessionService, environment);
     }
 }

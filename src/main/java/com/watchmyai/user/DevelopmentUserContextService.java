@@ -18,16 +18,16 @@ public class DevelopmentUserContextService implements UserContextService {
     private static final Pattern SAFE_USER_ID = Pattern.compile("[A-Za-z0-9._:-]{3,100}");
 
     private final ObjectProvider<HttpServletRequest> requestProvider;
-    private final AppleIdentityTokenVerifier appleIdentityTokenVerifier;
+    private final AppSessionService appSessionService;
     private final Environment environment;
 
     public DevelopmentUserContextService(
             ObjectProvider<HttpServletRequest> requestProvider,
-            AppleIdentityTokenVerifier appleIdentityTokenVerifier,
+            AppSessionService appSessionService,
             Environment environment
     ) {
         this.requestProvider = requestProvider;
-        this.appleIdentityTokenVerifier = appleIdentityTokenVerifier;
+        this.appSessionService = appSessionService;
         this.environment = environment;
     }
 
@@ -40,11 +40,9 @@ public class DevelopmentUserContextService implements UserContextService {
 
         String authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {
-            AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(
-                    authorization.substring(BEARER_PREFIX.length()).trim()
-            );
-
-            return new UserIdentity("apple:" + appleUser.subject());
+            return appSessionService
+                    .resolveIdentity(authorization.substring(BEARER_PREFIX.length()).trim())
+                    .orElseThrow(() -> new AuthenticationRequiredException("Session is invalid or expired."));
         }
 
         if (!isDevelopmentProfile()) {
@@ -66,8 +64,6 @@ public class DevelopmentUserContextService implements UserContextService {
 
     private boolean isDevelopmentProfile() {
         return Arrays.asList(environment.getActiveProfiles()).contains("dev")
-                || Arrays.asList(environment.getActiveProfiles()).contains("test")
-                || Arrays.asList(environment.getDefaultProfiles()).contains("dev")
-                || Arrays.asList(environment.getDefaultProfiles()).contains("test");
+                || Arrays.asList(environment.getActiveProfiles()).contains("test");
     }
 }

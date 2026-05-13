@@ -4,8 +4,10 @@ import com.watchmyai.quota.PlanType;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
+@SuppressWarnings({"unused", "FieldCanBeLocal", "JpaDataSourceORMInspection"})
 @Table(name = "app_store_subscription")
 public class AppStoreSubscriptionEntity {
 
@@ -31,6 +33,9 @@ public class AppStoreSubscriptionEntity {
 
     @Column(name = "environment", nullable = false)
     private String environment;
+
+    @Column(name = "app_account_token")
+    private UUID appAccountToken;
 
     @Column(name = "status", nullable = false)
     private String status;
@@ -119,6 +124,10 @@ public class AppStoreSubscriptionEntity {
         return status;
     }
 
+    public UUID getAppAccountToken() {
+        return appAccountToken;
+    }
+
     public boolean isActive() {
         return active;
     }
@@ -140,6 +149,7 @@ public class AppStoreSubscriptionEntity {
             String productId,
             PlanType planType,
             String environment,
+            UUID appAccountToken,
             String status,
             boolean active,
             Instant expiresAt,
@@ -156,6 +166,7 @@ public class AppStoreSubscriptionEntity {
         this.productId = productId;
         this.planType = planType;
         this.environment = environment;
+        this.appAccountToken = appAccountToken;
         this.status = status;
         this.active = active;
         this.expiresAt = expiresAt;
