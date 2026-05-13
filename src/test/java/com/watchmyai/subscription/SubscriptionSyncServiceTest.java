@@ -17,7 +17,8 @@ class SubscriptionSyncServiceTest {
                 "transaction-1",
                 "original-1",
                 "sandbox",
-                "header.payload.signature"
+                "header.payload.signature",
+                "de305d54-75b4-431b-adb2-eb6b9e546014"
         );
         doReturn(new SubscriptionStatusResponse(
                 PlanType.PRO,

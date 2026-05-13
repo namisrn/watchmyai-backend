@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
+@SuppressWarnings({"unused", "JpaDataSourceORMInspection"})
 @Table(
         name = "user_usage",
         uniqueConstraints = {
@@ -77,11 +78,11 @@ public class UserUsageEntity {
         this.planType = planType;
         this.periodYearMonth = periodYearMonth;
         this.periodDay = periodDay;
-        this.usedLifetimeRequests = 5;
+        this.usedLifetimeRequests = 0;
         this.usedDailyRequests = 0;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
-        this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
+        this.estimatedMonthlyCostEur = BigDecimal.ZERO;
     }
 
     @PrePersist
@@ -169,11 +170,11 @@ public class UserUsageEntity {
     }
 
     public void reset() {
-        this.usedLifetimeRequests = 5;
+        this.usedLifetimeRequests = 0;
         this.usedDailyRequests = 0;
         this.usedMonthlyRequests = 0;
         this.usedPremiumRequests = 0;
-        this.estimatedMonthlyCostEur = new BigDecimal("0.002000");
+        this.estimatedMonthlyCostEur = BigDecimal.ZERO;
     }
 
     public void simulateHighCost() {

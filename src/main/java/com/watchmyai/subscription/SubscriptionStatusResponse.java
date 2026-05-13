@@ -3,6 +3,7 @@ package com.watchmyai.subscription;
 import com.watchmyai.quota.PlanType;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record SubscriptionStatusResponse(
         PlanType planType,
@@ -14,7 +15,8 @@ public record SubscriptionStatusResponse(
         String environment,
         Instant expiresAt,
         Instant revokedAt,
-        String entitlementStatus
+        String entitlementStatus,
+        UUID appAccountToken
 ) {
     public SubscriptionStatusResponse(PlanType planType, String productId, boolean verified) {
         this(
@@ -27,7 +29,8 @@ public record SubscriptionStatusResponse(
                 null,
                 null,
                 null,
-                verified ? "ACTIVE" : "UNKNOWN"
+                verified ? "ACTIVE" : "UNKNOWN",
+                null
         );
     }
 
@@ -50,7 +53,8 @@ public record SubscriptionStatusResponse(
                 environment,
                 null,
                 null,
-                verified ? "ACTIVE" : "UNKNOWN"
+                verified ? "ACTIVE" : "UNKNOWN",
+                null
         );
     }
 }

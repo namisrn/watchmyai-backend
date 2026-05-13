@@ -2,16 +2,19 @@ package com.watchmyai.ai;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.watchmyai.common.api.RequestCorrelation;
 import com.watchmyai.config.OpenAiProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class OpenAiClient {
@@ -24,7 +27,9 @@ public class OpenAiClient {
     public OpenAiClient(OpenAiProperties openAiProperties, ObjectMapper objectMapper) {
         this.openAiProperties = openAiProperties;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(8))
+                .build();
     }
 
     public OpenAiResponse ask(String model, String systemPrompt, String userPrompt, int maxOutputTokens) {
@@ -42,11 +47,14 @@ public class OpenAiClient {
         }
 
         String requestBody = buildRequestBody(model, systemPrompt, userPrompt, maxOutputTokens);
+        String requestId = currentRequestId();
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(openAiProperties.responsesUrl())
                 .header("Authorization", "Bearer " + openAiProperties.apiKey())
                 .header("Content-Type", "application/json")
+                .header("X-Client-Request-Id", requestId)
+                .timeout(Duration.ofSeconds(25))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -57,6 +65,11 @@ public class OpenAiClient {
             );
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn(
+                        "OpenAI provider error status={} providerRequestId={}",
+                        response.statusCode(),
+                        response.headers().firstValue("x-request-id").orElse("missing")
+                );
                 throw new OpenAiClientException(
                         extractErrorMessage(response.body(), response.statusCode()),
                         response.statusCode()
@@ -121,7 +134,7 @@ public class OpenAiClient {
             }
         }
 
-        System.out.println("OpenAI response without readable text: " + responseBody);
+        log.warn("OpenAI response without readable text. responseBody={}", responseBody);
         throw new OpenAiClientException("OpenAI lieferte keine lesbare Antwort.", 502);
     }
 
@@ -164,10 +177,15 @@ public class OpenAiClient {
         return "OpenAI-Fehler: " + statusCode;
     }
 
+    private String currentRequestId() {
+        String requestId = RequestCorrelation.currentRequestId();
+        return requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId;
+    }
+
     static String sanitizeProviderMessage(String rawMessage) {
         String message = rawMessage == null ? "" : rawMessage;
         message = message.replaceAll("sk-[A-Za-z0-9_\\-]+", "sk-***");
-        message = message.replaceAll("Bearer\\s+[A-Za-z0-9_\\-\\.]+", "Bearer ***");
+        message = message.replaceAll("Bearer\\s+[A-Za-z0-9_.-]+", "Bearer ***");
         return message;
     }
 }

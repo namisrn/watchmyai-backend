@@ -5,14 +5,18 @@ import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.apple.itunes.storekit.model.Status;
 import com.watchmyai.quota.PlanType;
 import com.watchmyai.quota.UserPlanService;
+import com.watchmyai.user.AppUserService;
 import com.watchmyai.user.UserContextService;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class SubscriptionEntitlementService {
@@ -21,6 +25,8 @@ public class SubscriptionEntitlementService {
     private final SubscriptionProductCatalog productCatalog;
     private final UserPlanService userPlanService;
     private final UserContextService userContextService;
+    private final AppUserService appUserService;
+    private final Environment environment;
     private final Clock clock;
 
     public SubscriptionEntitlementService(
@@ -28,12 +34,16 @@ public class SubscriptionEntitlementService {
             SubscriptionProductCatalog productCatalog,
             UserPlanService userPlanService,
             UserContextService userContextService,
+            AppUserService appUserService,
+            Environment environment,
             Clock clock
     ) {
         this.subscriptionRepository = subscriptionRepository;
         this.productCatalog = productCatalog;
         this.userPlanService = userPlanService;
         this.userContextService = userContextService;
+        this.appUserService = appUserService;
+        this.environment = environment;
         this.clock = clock;
     }
 
@@ -55,6 +65,10 @@ public class SubscriptionEntitlementService {
             );
         }
 
+        if (!isDevelopmentProfile()) {
+            throw new IllegalArgumentException("App Store transaction verification is required.");
+        }
+
         PlanType planType = productCatalog
                 .findPlanType(request.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
@@ -69,6 +83,7 @@ public class SubscriptionEntitlementService {
                 request.productId(),
                 planType,
                 request.environment(),
+                parseAppAccountToken(request.appAccountToken()),
                 "UNVERIFIED_ACTIVE",
                 true,
                 null,
@@ -101,7 +116,25 @@ public class SubscriptionEntitlementService {
                 .findByOriginalTransactionId(originalTransactionId);
 
         if (existing.isEmpty()) {
-            return new AppStoreNotificationResponse(true, "unknown_original_transaction");
+            UUID appAccountToken = transaction.getAppAccountToken();
+            if (appAccountToken == null) {
+                return new AppStoreNotificationResponse(true, "unknown_original_transaction");
+            }
+
+            return appUserService
+                    .findByAppAccountToken(appAccountToken)
+                    .map(user -> {
+                        upsertFromTransaction(
+                                user.getUserId(),
+                                transaction,
+                                "app_store_server_notification",
+                                stringValue(payload.getRawNotificationType(), payload.getNotificationType()),
+                                stringValue(payload.getRawSubtype(), payload.getSubtype()),
+                                payload.getData() == null ? null : payload.getData().getStatus()
+                        );
+                        return new AppStoreNotificationResponse(true, "plan_updated_by_app_account_token");
+                    })
+                    .orElseGet(() -> new AppStoreNotificationResponse(true, "unknown_app_account_token"));
         }
 
         AppStoreSubscriptionEntity subscription = existing.get();
@@ -171,6 +204,7 @@ public class SubscriptionEntitlementService {
                 productId,
                 planType,
                 stringValue(payload.getRawEnvironment(), payload.getEnvironment()),
+                payload.getAppAccountToken(),
                 appStoreStatus == null ? (active ? "ACTIVE" : "INACTIVE") : appStoreStatus.name(),
                 active,
                 expiresAt,
@@ -211,7 +245,8 @@ public class SubscriptionEntitlementService {
                 subscription.getEnvironment(),
                 subscription.getExpiresAt(),
                 subscription.getRevokedAt(),
-                subscription.getStatus()
+                subscription.getStatus(),
+                subscription.getAppAccountToken()
         );
     }
 
@@ -229,5 +264,14 @@ public class SubscriptionEntitlementService {
             return rawValue;
         }
         return typedValue == null ? null : typedValue.toString();
+    }
+
+    private UUID parseAppAccountToken(String raw) {
+        return raw == null || raw.isBlank() ? null : UUID.fromString(raw);
+    }
+
+    private boolean isDevelopmentProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("dev")
+                || Arrays.asList(environment.getActiveProfiles()).contains("test");
     }
 }

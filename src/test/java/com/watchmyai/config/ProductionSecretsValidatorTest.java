@@ -1,9 +1,11 @@
 package com.watchmyai.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.ApplicationArguments;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class ProductionSecretsValidatorTest {
 
@@ -16,6 +18,11 @@ class ProductionSecretsValidatorTest {
                         "https://appleid.apple.com/auth/keys",
                         "com.sasanrafatnami.WatchMyAI"
                 ),
+                new AppleSignInServerProperties(
+                        "TEAMID1234",
+                        "signin-key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"
+                ),
                 new AppStoreServerProperties(
                         "com.sasanrafatnami.WatchMyAI",
                         123456789L,
@@ -24,7 +31,8 @@ class ProductionSecretsValidatorTest {
                         "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
                         "SANDBOX",
                         true
-                )
+                ),
+                new RedisProperties("redis://redis:6379")
         );
 
         assertThat(validator.validate()).isEmpty();
@@ -39,6 +47,7 @@ class ProductionSecretsValidatorTest {
                         "https://appleid.apple.com/auth/keys",
                         ""
                 ),
+                new AppleSignInServerProperties("", "", ""),
                 new AppStoreServerProperties(
                         "com.example.Other",
                         0L,
@@ -47,7 +56,8 @@ class ProductionSecretsValidatorTest {
                         "",
                         "XCODE",
                         false
-                )
+                ),
+                new RedisProperties("")
         );
 
         assertThat(validator.validate())
@@ -55,11 +65,13 @@ class ProductionSecretsValidatorTest {
                         "OPENAI_API_KEY must be set.",
                         "WATCHMYAI_OPENAI_MOCK_ENABLED must be false in prod.",
                         "APPLE_CLIENT_ID must be set to com.sasanrafatnami.WatchMyAI.",
+                        "APPLE_TEAM_ID, APPLE_SIGNIN_KEY_ID, and APPLE_SIGNIN_PRIVATE_KEY must be set.",
                         "APP_STORE_BUNDLE_ID must be com.sasanrafatnami.WatchMyAI.",
                         "APP_STORE_APP_APPLE_ID must be set to the numeric App Store Connect app Apple ID.",
                         "APP_STORE_ISSUER_ID, APP_STORE_KEY_ID, and APP_STORE_PRIVATE_KEY must be set.",
                         "APP_STORE_ENVIRONMENT must be SANDBOX for TestFlight or PRODUCTION for release.",
-                        "APP_STORE_VERIFICATION_ENABLED must be true in prod."
+                        "APP_STORE_VERIFICATION_ENABLED must be true in prod.",
+                        "REDIS_URL must be set in prod."
                 );
     }
 
@@ -72,6 +84,11 @@ class ProductionSecretsValidatorTest {
                         "https://appleid.apple.com/auth/keys",
                         "com.sasanrafatnami.WatchMyAI"
                 ),
+                new AppleSignInServerProperties(
+                        "TEAMID1234",
+                        "signin-key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"
+                ),
                 new AppStoreServerProperties(
                         "com.sasanrafatnami.WatchMyAI",
                         123456789L,
@@ -80,10 +97,11 @@ class ProductionSecretsValidatorTest {
                         "bad-key",
                         "PRODUCTION",
                         true
-                )
+                ),
+                new RedisProperties("redis://redis:6379")
         );
 
-        assertThatThrownBy(() -> validator.run(null))
+        assertThatThrownBy(() -> validator.run(mock(ApplicationArguments.class)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Production configuration is incomplete")
                 .hasMessageContaining("OPENAI_API_KEY must be set.")

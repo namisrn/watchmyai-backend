@@ -27,14 +27,13 @@ class UsageServiceTest {
     private static final String CURRENT_PERIOD = "2026-04";
 
     private UserUsageRepository userUsageRepository;
-    private UserPlanService userPlanService;
     private UsageService usageService;
 
     @BeforeEach
     void setUp() {
         userUsageRepository = mock(UserUsageRepository.class);
         UserContextService userContextService = mock(UserContextService.class);
-        userPlanService = mock(UserPlanService.class);
+        UserPlanService userPlanService = mock(UserPlanService.class);
         when(userContextService.getCurrentUser())
                 .thenReturn(new UserIdentity(TEST_USER_ID));
         when(userPlanService.getCurrentPlan())
@@ -59,11 +58,11 @@ class UsageServiceTest {
 
         UsageSnapshot snapshot = usageService.getCurrentUsage();
 
-        assertThat(snapshot.usedLifetimeRequests()).isEqualTo(5);
+        assertThat(snapshot.usedLifetimeRequests()).isZero();
         assertThat(snapshot.usedDailyRequests()).isZero();
         assertThat(snapshot.usedMonthlyRequests()).isZero();
         assertThat(snapshot.usedPremiumRequests()).isZero();
-        assertThat(snapshot.estimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.002000"));
+        assertThat(snapshot.estimatedMonthlyCostEur()).isEqualByComparingTo(BigDecimal.ZERO);
 
         verify(userUsageRepository).findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD);
         verify(userUsageRepository).save(any(UserUsageEntity.class));
@@ -82,11 +81,11 @@ class UsageServiceTest {
 
         usageService.recordRequest(PlanType.FREE, new BigDecimal("0.001000"), false);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(6);
+        assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.003000"));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.001000"));
     }
 
     @Test
@@ -102,11 +101,11 @@ class UsageServiceTest {
 
         usageService.recordRequest(PlanType.PLUS, new BigDecimal("0.005000"), false);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
+        assertThat(existingUsage.getUsedLifetimeRequests()).isZero();
         assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.007000"));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.005000"));
     }
 
     @Test
@@ -122,10 +121,10 @@ class UsageServiceTest {
 
         usageService.recordRequest(PlanType.PRO, new BigDecimal("0.020000"), true);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(5);
+        assertThat(existingUsage.getUsedLifetimeRequests()).isZero();
         assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
         assertThat(existingUsage.getUsedPremiumRequests()).isEqualTo(1);
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.022000"));
+        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.020000"));
     }
 }

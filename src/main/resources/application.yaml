@@ -2,14 +2,15 @@ spring:
   application:
     name: watchmyai-backend
 
-  profiles:
-    default: dev
-
   jpa:
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
 
 watchmyai:
   debug:
@@ -22,3 +23,7 @@ watchmyai:
       # APPLE_CLIENT_ID oft unset — Default = App-Bundle + WatchKit-Extension (JWT aud).
       # Überschreiben: APPLE_CLIENT_ID=com.sasanrafatnami.WatchMyAI[,weitere]
       audience: ${APPLE_CLIENT_ID:com.sasanrafatnami.WatchMyAI,com.sasanrafatnami.WatchMyAI.watchkitapp}
+  session:
+    ttl-days: ${WATCHMYAI_SESSION_TTL_DAYS:30}
+  legal:
+    contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
