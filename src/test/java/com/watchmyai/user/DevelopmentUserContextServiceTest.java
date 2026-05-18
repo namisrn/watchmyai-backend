@@ -81,6 +81,29 @@ class DevelopmentUserContextServiceTest {
     }
 
     @Test
+    void getCurrentUserRejectsMissingRequestOutsideDevelopment() {
+        ObjectProvider<HttpServletRequest> requestProvider = mock(ObjectProvider.class);
+        when(requestProvider.getIfAvailable()).thenReturn(null);
+        DevelopmentUserContextService service = newService(requestProvider, "prod");
+
+        assertThatThrownBy(service::getCurrentUser)
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("Authentication is required.");
+    }
+
+    @Test
+    void getCurrentUserRejectsDevelopmentFallbackWhenProdProfileIsAlsoActive() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        ObjectProvider<HttpServletRequest> requestProvider = mock(ObjectProvider.class);
+        when(requestProvider.getIfAvailable()).thenReturn(request);
+        DevelopmentUserContextService service = newService(requestProvider, new String[]{"prod", "dev"}, new String[]{"default"});
+
+        assertThatThrownBy(service::getCurrentUser)
+                .isInstanceOf(AuthenticationRequiredException.class)
+                .hasMessage("Authentication is required.");
+    }
+
+    @Test
     void getCurrentUserReturnsAppleSubjectForBearerToken() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader("Authorization"))

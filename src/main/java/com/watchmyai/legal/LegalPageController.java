@@ -17,6 +17,7 @@ public class LegalPageController {
 
     @GetMapping(value = "/privacy", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> privacy() {
+        String contactEmail = escape(legalProperties.contactEmail());
         return ResponseEntity.ok(page(
                 "WatchMyAI Privacy Policy",
                 """
@@ -25,13 +26,14 @@ public class LegalPageController {
                         <p>AI prompts and generated answers are sent to the WatchMyAI backend and onward to OpenAI only to provide the requested AI response, enforce usage limits, prevent abuse, and operate the service.</p>
                         <p>Subscription status and App Store transaction identifiers are processed to provide Plus and Pro entitlements. Local chat history is stored on your device with SwiftData and may sync privately through your iCloud account when enabled by the system.</p>
                         <p>We do not sell personal data and do not use your data for third-party advertising tracking.</p>
-                        <p>Contact: <a href="mailto:%s">%s</a></p>
-                        """.formatted(escape(legalProperties.contactEmail()), escape(legalProperties.contactEmail()))
+                        <p>Contact: <a href="mailto:__CONTACT_EMAIL__">__CONTACT_EMAIL__</a></p>
+                        """.replace("__CONTACT_EMAIL__", contactEmail)
         ));
     }
 
     @GetMapping(value = "/terms", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> terms() {
+        String contactEmail = escape(legalProperties.contactEmail());
         return ResponseEntity.ok(page(
                 "WatchMyAI Terms of Use",
                 """
@@ -41,8 +43,8 @@ public class LegalPageController {
                         <p>Plus and Pro subscriptions renew automatically until cancelled in your Apple Account. Manage or cancel subscriptions in the App Store subscription settings.</p>
                         <p>Usage limits, plan features, and model availability may change to keep the service reliable and economically sustainable.</p>
                         <p>Do not use WatchMyAI for illegal, harmful, abusive, or high-risk decisions where professional advice is required.</p>
-                        <p>Contact: <a href="mailto:%s">%s</a></p>
-                        """.formatted(escape(legalProperties.contactEmail()), escape(legalProperties.contactEmail()))
+                        <p>Contact: <a href="mailto:__CONTACT_EMAIL__">__CONTACT_EMAIL__</a></p>
+                        """.replace("__CONTACT_EMAIL__", contactEmail)
         ));
     }
 
@@ -53,16 +55,18 @@ public class LegalPageController {
                 <head>
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <title>%s</title>
+                  <title>__TITLE__</title>
                   <style>
                     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.55; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #111827; }
                     h1 { line-height: 1.15; }
                     a { color: #0f766e; }
                   </style>
                 </head>
-                <body>%s</body>
+                <body>__BODY__</body>
                 </html>
-                """.formatted(escape(title), body);
+                """
+                .replace("__TITLE__", escape(title))
+                .replace("__BODY__", body);
     }
 
     private String escape(String value) {
