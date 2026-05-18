@@ -2,10 +2,12 @@ package com.watchmyai.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.core.env.Environment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ProductionSecretsValidatorTest {
 
@@ -32,7 +34,8 @@ class ProductionSecretsValidatorTest {
                         "SANDBOX",
                         true
                 ),
-                new RedisProperties("redis://redis:6379")
+                new RedisProperties("redis://redis:6379"),
+                environment("prod")
         );
 
         assertThat(validator.validate()).isEmpty();
@@ -57,7 +60,8 @@ class ProductionSecretsValidatorTest {
                         "XCODE",
                         false
                 ),
-                new RedisProperties("")
+                new RedisProperties(""),
+                environment("prod")
         );
 
         assertThat(validator.validate())
@@ -98,7 +102,8 @@ class ProductionSecretsValidatorTest {
                         "PRODUCTION",
                         true
                 ),
-                new RedisProperties("redis://redis:6379")
+                new RedisProperties("redis://redis:6379"),
+                environment("prod")
         );
 
         assertThatThrownBy(() -> validator.run(mock(ApplicationArguments.class)))
@@ -106,5 +111,42 @@ class ProductionSecretsValidatorTest {
                 .hasMessageContaining("Production configuration is incomplete")
                 .hasMessageContaining("OPENAI_API_KEY must be set.")
                 .hasMessageContaining("APP_STORE_PRIVATE_KEY must contain the full .p8 private key");
+    }
+
+    @Test
+    void rejectsDevelopmentProfilesInProduction() {
+        ProductionSecretsValidator validator = new ProductionSecretsValidator(
+                new OpenAiProperties("sk-live", false, "https://api.openai.com/v1/responses"),
+                new AppleAuthProperties(
+                        "https://appleid.apple.com",
+                        "https://appleid.apple.com/auth/keys",
+                        "com.sasanrafatnami.WatchMyAI"
+                ),
+                new AppleSignInServerProperties(
+                        "TEAMID1234",
+                        "signin-key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"
+                ),
+                new AppStoreServerProperties(
+                        "com.sasanrafatnami.WatchMyAI",
+                        123456789L,
+                        "issuer",
+                        "key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+                        "PRODUCTION",
+                        true
+                ),
+                new RedisProperties("redis://redis:6379"),
+                environment("prod", "dev")
+        );
+
+        assertThat(validator.validate())
+                .contains("SPRING_PROFILES_ACTIVE must not include dev or test in prod.");
+    }
+
+    private Environment environment(String... activeProfiles) {
+        Environment environment = mock(Environment.class);
+        when(environment.getActiveProfiles()).thenReturn(activeProfiles);
+        return environment;
     }
 }

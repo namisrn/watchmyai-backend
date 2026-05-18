@@ -3,9 +3,11 @@ package com.watchmyai.config;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -21,19 +23,22 @@ public class ProductionSecretsValidator implements ApplicationRunner {
     private final AppleSignInServerProperties appleSignInServerProperties;
     private final AppStoreServerProperties appStoreServerProperties;
     private final RedisProperties redisProperties;
+    private final Environment environment;
 
     public ProductionSecretsValidator(
             OpenAiProperties openAiProperties,
             AppleAuthProperties appleAuthProperties,
             AppleSignInServerProperties appleSignInServerProperties,
             AppStoreServerProperties appStoreServerProperties,
-            RedisProperties redisProperties
+            RedisProperties redisProperties,
+            Environment environment
     ) {
         this.openAiProperties = openAiProperties;
         this.appleAuthProperties = appleAuthProperties;
         this.appleSignInServerProperties = appleSignInServerProperties;
         this.appStoreServerProperties = appStoreServerProperties;
         this.redisProperties = redisProperties;
+        this.environment = environment;
     }
 
     @Override
@@ -55,6 +60,9 @@ public class ProductionSecretsValidator implements ApplicationRunner {
         }
         if (openAiProperties.mockEnabled()) {
             errors.add("WATCHMYAI_OPENAI_MOCK_ENABLED must be false in prod.");
+        }
+        if (hasActiveProfile("dev") || hasActiveProfile("test")) {
+            errors.add("SPRING_PROFILES_ACTIVE must not include dev or test in prod.");
         }
 
         if (!appleAuthProperties.hasAudience()) {
@@ -110,5 +118,9 @@ public class ProductionSecretsValidator implements ApplicationRunner {
 
         String normalized = raw.trim().toUpperCase(Locale.ROOT);
         return normalized.equals("SANDBOX") || normalized.equals("PRODUCTION");
+    }
+
+    private boolean hasActiveProfile(String profile) {
+        return Arrays.asList(environment.getActiveProfiles()).contains(profile);
     }
 }

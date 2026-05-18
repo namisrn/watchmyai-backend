@@ -10,7 +10,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(LegalPageController.class)
@@ -25,6 +27,7 @@ class LegalPageControllerTest {
     void privacyPageReturnsPublicHtml() throws Exception {
         mockMvc.perform(get("/privacy"))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("WatchMyAI Privacy Policy")))
                 .andExpect(content().string(containsString("support@watchmyai.app")));
     }
@@ -33,7 +36,19 @@ class LegalPageControllerTest {
     void termsPageReturnsPublicHtml() throws Exception {
         mockMvc.perform(get("/terms"))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("WatchMyAI Terms of Use")))
                 .andExpect(content().string(containsString("Subscriptions")));
+    }
+
+    @Test
+    void legalPagesSupportHeadRequests() throws Exception {
+        mockMvc.perform(head("/privacy"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("text/html")));
+
+        mockMvc.perform(head("/terms"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("text/html")));
     }
 }

@@ -35,6 +35,9 @@ public class DevelopmentUserContextService implements UserContextService {
     public UserIdentity getCurrentUser() {
         HttpServletRequest request = requestProvider.getIfAvailable();
         if (request == null) {
+            if (requiresAuthentication()) {
+                throw new AuthenticationRequiredException("Authentication is required.");
+            }
             return new UserIdentity(DEVELOPMENT_USER_ID);
         }
 
@@ -45,7 +48,7 @@ public class DevelopmentUserContextService implements UserContextService {
                     .orElseThrow(() -> new AuthenticationRequiredException("Session is invalid or expired."));
         }
 
-        if (!isDevelopmentProfile()) {
+        if (requiresAuthentication()) {
             throw new AuthenticationRequiredException("Authentication is required.");
         }
 
@@ -62,8 +65,9 @@ public class DevelopmentUserContextService implements UserContextService {
         return new UserIdentity(userId);
     }
 
-    private boolean isDevelopmentProfile() {
-        return Arrays.asList(environment.getActiveProfiles()).contains("dev")
-                || Arrays.asList(environment.getActiveProfiles()).contains("test");
+    private boolean requiresAuthentication() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("prod")
+                || (!Arrays.asList(environment.getActiveProfiles()).contains("dev")
+                && !Arrays.asList(environment.getActiveProfiles()).contains("test"));
     }
 }
