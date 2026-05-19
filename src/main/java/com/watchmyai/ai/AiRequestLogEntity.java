@@ -16,7 +16,7 @@ import java.time.Instant;
                 )
         }
 )
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "JpaDataSourceORMInspection", "FieldCanBeLocal"})
 public class AiRequestLogEntity {
 
     private static final String STATUS_PROCESSING = "PROCESSING";
@@ -164,6 +164,10 @@ public class AiRequestLogEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public String getUserId() {
+        return userId;
     }
 
     public boolean isCompleted() {

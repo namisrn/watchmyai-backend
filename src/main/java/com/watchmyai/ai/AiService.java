@@ -8,6 +8,8 @@ import com.watchmyai.quota.CostEstimatorService;
 import com.watchmyai.quota.UserPlanService;
 import com.watchmyai.user.UserContextService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,6 +19,8 @@ import java.util.Optional;
 
 @Service
 public class AiService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
     private static final Duration DUPLICATE_WAIT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration DUPLICATE_WAIT_INTERVAL = Duration.ofMillis(100);
@@ -138,6 +142,15 @@ public class AiService {
         QuotaCheckResult quota = quotaService.checkQuota(currentPlan);
 
         if (!quota.requestAllowed()) {
+            log.info(
+                    "AI request blocked by quota userId={} plan={} remaining={} dailyRemaining={} monthlyRemaining={} throttleState={}",
+                    requestLog.getUserId(),
+                    currentPlan,
+                    quota.remainingRequests(),
+                    quota.dailyRemainingRequests(),
+                    quota.monthlyRemainingRequests(),
+                    quota.throttleState()
+            );
             AskAIResponse blockedResponse = new AskAIResponse(
                     "Dein aktuelles Limit ist erreicht. Bitte upgrade oder versuche es später erneut.",
                     "none",

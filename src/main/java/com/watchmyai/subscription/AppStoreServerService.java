@@ -19,10 +19,12 @@ public class AppStoreServerService {
 
     private final AppStoreServerProperties properties;
     private final SignedDataVerifier signedDataVerifier;
+    private final SignedDataVerifier sandboxSignedDataVerifier;
 
     public AppStoreServerService(AppStoreServerProperties properties) {
         this.properties = properties;
-        this.signedDataVerifier = createVerifierIfReady(properties);
+        this.signedDataVerifier = createVerifierIfReady(properties, toEnvironment(properties.environment()));
+        this.sandboxSignedDataVerifier = createVerifierIfReady(properties, Environment.SANDBOX);
     }
 
     public AppStoreServerStatusResponse status() {
@@ -35,6 +37,7 @@ public class AppStoreServerService {
         );
     }
 
+    @SuppressWarnings("unused")
     public AppStoreNotificationResponse acceptNotification(AppStoreNotificationRequest request) {
         verifyNotificationPayload(request.signedPayload());
 
@@ -80,6 +83,13 @@ public class AppStoreServerService {
         try {
             return signedDataVerifier.verifyAndDecodeNotification(signedPayload);
         } catch (VerificationException ex) {
+            if (sandboxSignedDataVerifier != null && sandboxSignedDataVerifier != signedDataVerifier) {
+                try {
+                    return sandboxSignedDataVerifier.verifyAndDecodeNotification(signedPayload);
+                } catch (VerificationException ignored) {
+                    // Keep the original verification status because it matches the primary configured environment.
+                }
+            }
             throw new IllegalArgumentException("App Store notification verification failed: " + ex.getStatus(), ex);
         }
     }
@@ -88,6 +98,13 @@ public class AppStoreServerService {
         try {
             return signedDataVerifier.verifyAndDecodeTransaction(signedTransactionInfo);
         } catch (VerificationException ex) {
+            if (sandboxSignedDataVerifier != null && sandboxSignedDataVerifier != signedDataVerifier) {
+                try {
+                    return sandboxSignedDataVerifier.verifyAndDecodeTransaction(signedTransactionInfo);
+                } catch (VerificationException ignored) {
+                    // Keep the original verification status because it matches the primary configured environment.
+                }
+            }
             throw new IllegalArgumentException("App Store transaction verification failed: " + ex.getStatus(), ex);
         }
     }
@@ -100,12 +117,20 @@ public class AppStoreServerService {
             try {
                 signedDataVerifier.verifyAndDecodeRenewalInfo(data.getSignedRenewalInfo());
             } catch (VerificationException ex) {
+                if (sandboxSignedDataVerifier != null && sandboxSignedDataVerifier != signedDataVerifier) {
+                    try {
+                        sandboxSignedDataVerifier.verifyAndDecodeRenewalInfo(data.getSignedRenewalInfo());
+                        return;
+                    } catch (VerificationException ignored) {
+                        // Keep the original verification status because it matches the primary configured environment.
+                    }
+                }
                 throw new IllegalArgumentException("App Store renewal verification failed: " + ex.getStatus(), ex);
             }
         }
     }
 
-    private SignedDataVerifier createVerifierIfReady(AppStoreServerProperties properties) {
+    private SignedDataVerifier createVerifierIfReady(AppStoreServerProperties properties, Environment verifierEnvironment) {
         if (!properties.readyForProductionVerification()) {
             return null;
         }
@@ -121,7 +146,7 @@ public class AppStoreServerService {
                 roots,
                 properties.bundleId(),
                 properties.appAppleId(),
-                toEnvironment(properties.environment()),
+                verifierEnvironment,
                 true
         );
     }
