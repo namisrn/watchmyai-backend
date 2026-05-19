@@ -21,7 +21,10 @@ public record AskAIRequest(
         String mode,
 
         @NotBlank(message = "language must not be blank")
-        @Pattern(regexp = "de|en|auto", message = "language must be one of: de, en, auto")
+        @Pattern(
+                regexp = "auto|ar|cs|da|de|el|en|es|fr|hi|id|it|ja|ko|nb|nl|no|pl|pt-BR|ru|sv|th|tr|ur|vi|zh-Hans",
+                message = "language must be a supported app language or auto"
+        )
         String language,
 
         @NotBlank(message = "clientRequestId must not be blank")

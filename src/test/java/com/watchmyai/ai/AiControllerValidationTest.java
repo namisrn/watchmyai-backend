@@ -121,7 +121,7 @@ class AiControllerValidationTest {
                               "input": "Hallo",
                               "source": "watch",
                               "mode": "explain",
-                              "language": "fr",
+                              "language": "xx",
                               "clientRequestId": "test-request-001"
                             }
                             """))
