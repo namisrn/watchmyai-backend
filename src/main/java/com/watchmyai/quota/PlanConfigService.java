@@ -16,7 +16,7 @@ public class PlanConfigService {
                     20,
                     0,
                     180,
-                    new BigDecimal("0.01")
+                    new BigDecimal("0.20")
             ),
             PlanType.PLUS, new PlanLimits(
                     PlanType.PLUS,
