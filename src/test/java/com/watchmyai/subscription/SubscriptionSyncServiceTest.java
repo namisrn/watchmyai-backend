@@ -35,7 +35,8 @@ class SubscriptionSyncServiceTest {
 
         SubscriptionSyncService service = new SubscriptionSyncService(
                 appStoreServerService(),
-                entitlementService
+                entitlementService,
+                new SubscriptionProductCatalog()
         );
 
         SubscriptionStatusResponse response = service.sync(request);

@@ -11,9 +11,9 @@ class SubscriptionProductCatalogTest {
 
     @Test
     void findPlanTypeMapsKnownProductIds() {
-        assertThat(productCatalog.findPlanType("watchmyai.plus.monthly"))
+        assertThat(productCatalog.findPlanType(SubscriptionProductCatalog.PLUS_MONTHLY_PRODUCT_ID))
                 .contains(PlanType.PLUS);
-        assertThat(productCatalog.findPlanType("watchmyai.pro.monthly"))
+        assertThat(productCatalog.findPlanType(SubscriptionProductCatalog.PRO_MONTHLY_PRODUCT_ID))
                 .contains(PlanType.PRO);
     }
 
@@ -26,9 +26,9 @@ class SubscriptionProductCatalogTest {
     @Test
     void findProductIdMapsPaidPlans() {
         assertThat(productCatalog.findProductId(PlanType.PLUS))
-                .contains("watchmyai.plus.monthly");
+                .contains(SubscriptionProductCatalog.PLUS_MONTHLY_PRODUCT_ID);
         assertThat(productCatalog.findProductId(PlanType.PRO))
-                .contains("watchmyai.pro.monthly");
+                .contains(SubscriptionProductCatalog.PRO_MONTHLY_PRODUCT_ID);
         assertThat(productCatalog.findProductId(PlanType.FREE))
                 .isEmpty();
     }
