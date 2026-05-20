@@ -140,6 +140,10 @@ public class AppStoreSubscriptionEntity {
         return revokedAt;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public String getVerificationSource() {
         return verificationSource;
     }

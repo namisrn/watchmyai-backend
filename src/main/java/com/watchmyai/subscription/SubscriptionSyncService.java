@@ -27,8 +27,10 @@ public class SubscriptionSyncService {
                 appStoreServerService.verifyClientTransactionPayload(request.signedTransactionInfo());
         SubscriptionStatusResponse response = subscriptionEntitlementService.syncFromClient(request, verificationResult);
         log.info(
-                "Subscription sync completed productId={} environment={} verified={} source={} resultingPlan={}",
+                "Subscription sync completed productId={} transactionId={} originalTransactionId={} environment={} verified={} source={} resultingPlan={}",
                 request.productId(),
+                request.transactionId(),
+                request.originalTransactionId(),
                 request.environment(),
                 response.verified(),
                 response.verificationSource(),

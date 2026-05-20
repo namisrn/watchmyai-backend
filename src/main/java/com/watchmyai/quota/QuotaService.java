@@ -23,7 +23,7 @@ public class QuotaService {
         PlanLimits limits = planConfigService.getLimits(planType);
         UsageSnapshot usage = usageService.getCurrentUsage();
 
-        int lifetimeRemainingRequests = planType == PlanType.FREE
+        int lifetimeRemainingRequests = limits.lifetimeRequestLimit() > 0
                 ? Math.max(limits.lifetimeRequestLimit() - usage.usedLifetimeRequests(), 0)
                 : Integer.MAX_VALUE;
         int dailyRemainingRequests = Math.max(limits.dailyRequestLimit() - usage.usedDailyRequests(), 0);

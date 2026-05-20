@@ -98,8 +98,8 @@ public class SubscriptionEntitlementService {
         );
 
         subscriptionRepository.save(subscription);
-        refreshUserPlan(userId);
-        return toResponse(subscription);
+        PlanType resultingPlan = refreshUserPlan(userId);
+        return getCurrentActiveStatus(userId, resultingPlan);
     }
 
     @Transactional
@@ -219,11 +219,11 @@ public class SubscriptionEntitlementService {
         );
 
         subscriptionRepository.save(subscription);
-        refreshUserPlan(userId);
-        return toResponse(subscription);
+        PlanType resultingPlan = refreshUserPlan(userId);
+        return getCurrentActiveStatus(userId, resultingPlan);
     }
 
-    private void refreshUserPlan(String userId) {
+    private PlanType refreshUserPlan(String userId) {
         PlanType activePlan = subscriptionRepository
                 .findByUserIdAndActiveTrue(userId)
                 .stream()
@@ -232,6 +232,20 @@ public class SubscriptionEntitlementService {
                 .orElse(PlanType.FREE);
 
         userPlanService.setCurrentPlanForUser(userId, activePlan);
+        return activePlan;
+    }
+
+    private SubscriptionStatusResponse getCurrentActiveStatus(String userId, PlanType resultingPlan) {
+        return subscriptionRepository
+                .findByUserIdAndActiveTrue(userId)
+                .stream()
+                .filter(subscription -> subscription.getPlanType() == resultingPlan)
+                .max(Comparator.comparing(
+                        AppStoreSubscriptionEntity::getUpdatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ))
+                .map(this::toResponse)
+                .orElseGet(() -> new SubscriptionStatusResponse(PlanType.FREE, null, true));
     }
 
     private SubscriptionStatusResponse toResponse(AppStoreSubscriptionEntity subscription) {
