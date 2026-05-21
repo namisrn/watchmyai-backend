@@ -20,6 +20,9 @@ public record AppleAuthRequest(
         String source,
 
         @Size(max = 255)
-        String deviceName
+        String deviceName,
+
+        @Size(max = 255)
+        String nonce
 ) {
 }

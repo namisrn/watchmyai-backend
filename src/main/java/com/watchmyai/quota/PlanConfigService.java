@@ -11,7 +11,7 @@ public class PlanConfigService {
     private final Map<PlanType, PlanLimits> limitsByPlan = Map.of(
             PlanType.FREE, new PlanLimits(
                     PlanType.FREE,
-                    20,
+                    0,
                     5,
                     20,
                     0,

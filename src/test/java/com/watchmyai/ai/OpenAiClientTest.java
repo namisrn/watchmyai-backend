@@ -1,6 +1,7 @@
 package com.watchmyai.ai;
 
 import com.watchmyai.config.OpenAiProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
@@ -13,7 +14,8 @@ class OpenAiClientTest {
     void rejectsMissingApiKeyUnlessMockModeIsExplicitlyEnabled() {
         OpenAiClient client = new OpenAiClient(
                 new OpenAiProperties("", false, "https://api.openai.com/v1/responses"),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new SimpleMeterRegistry()
         );
 
         assertThatThrownBy(() -> client.ask("gpt-5.4-mini", "System", "Hallo", 120))
@@ -27,7 +29,8 @@ class OpenAiClientTest {
     void keepsMockModeAvailableWhenExplicitlyEnabled() {
         OpenAiClient client = new OpenAiClient(
                 new OpenAiProperties("", true, "https://api.openai.com/v1/responses"),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new SimpleMeterRegistry()
         );
 
         OpenAiResponse response = client.ask("gpt-5.4-mini", "System", "Hallo", 120);

@@ -50,7 +50,7 @@ class QuotaControllerTest {
                 26,
                 new BigDecimal("0.520000"),
                 new BigDecimal("2.000000"),
-                "normal",
+                QuotaState.NORMAL,
                 limits
         );
 

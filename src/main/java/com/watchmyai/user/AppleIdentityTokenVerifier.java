@@ -3,6 +3,8 @@ package com.watchmyai.user;
 import com.watchmyai.config.AppleAuthProperties;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
@@ -11,18 +13,23 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.Signature;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
 @Service
 public class AppleIdentityTokenVerifier {
 
+    private static final Logger log = LoggerFactory.getLogger(AppleIdentityTokenVerifier.class);
     private static final String EXPECTED_ALGORITHM = "RS256";
     private static final long CLOCK_SKEW_SECONDS = 60;
+    private static final Duration JWKS_CACHE_TTL = Duration.ofHours(24);
+    private static final Duration JWKS_HTTP_TIMEOUT = Duration.ofSeconds(5);
 
     private final AppleAuthProperties appleAuthProperties;
     private final ObjectMapper objectMapper;
@@ -30,6 +37,7 @@ public class AppleIdentityTokenVerifier {
     private final Clock clock;
 
     private volatile JsonNode cachedKeys;
+    private volatile Instant cachedKeysAt;
 
     public AppleIdentityTokenVerifier(
             AppleAuthProperties appleAuthProperties,
@@ -39,10 +47,12 @@ public class AppleIdentityTokenVerifier {
         this.appleAuthProperties = appleAuthProperties;
         this.objectMapper = objectMapper;
         this.clock = clock;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(JWKS_HTTP_TIMEOUT)
+                .build();
     }
 
-    public AppleUserIdentity verify(String identityToken) {
+    public AppleUserIdentity verify(String identityToken, String rawNonce) {
         if (!appleAuthProperties.hasAudience()) {
             throw new AuthenticationRequiredException("Apple auth audience is not configured.");
         }
@@ -64,6 +74,7 @@ public class AppleIdentityTokenVerifier {
 
             verifySignature(parts, findPublicKey(keyId));
             validateClaims(claims);
+            validateNonce(claims, rawNonce);
 
             String subject = stringClaim(claims, "sub");
             if (subject == null || subject.isBlank()) {
@@ -117,6 +128,49 @@ public class AppleIdentityTokenVerifier {
         }
     }
 
+    /**
+     * Validates the nonce binding. The client passes {@code request.nonce = SHA256(rawNonce)} to
+     * Apple, which echoes that value into the token's {@code nonce} claim. The backend receives the
+     * raw nonce, hashes it and compares. Tolerant transition: when the client sends no nonce or the
+     * token carries no nonce claim (older app versions), only a warning is logged.
+     */
+    private void validateNonce(JsonNode claims, String rawNonce) {
+        String tokenNonce = stringClaim(claims, "nonce");
+        boolean clientSentNonce = rawNonce != null && !rawNonce.isBlank();
+        boolean tokenHasNonce = tokenNonce != null && !tokenNonce.isBlank();
+
+        if (!clientSentNonce || !tokenHasNonce) {
+            log.warn(
+                    "Apple identity token verified without nonce binding clientSentNonce={} tokenHasNonce={}",
+                    clientSentNonce,
+                    tokenHasNonce
+            );
+            return;
+        }
+
+        if (!MessageDigest.isEqual(
+                sha256Hex(rawNonce).getBytes(StandardCharsets.US_ASCII),
+                tokenNonce.getBytes(StandardCharsets.US_ASCII)
+        )) {
+            throw new AuthenticationRequiredException("Apple identity token nonce is invalid.");
+        }
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16));
+                hex.append(Character.forDigit(b & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (Exception exception) {
+            throw new AuthenticationRequiredException("Apple identity token nonce could not be hashed.", exception);
+        }
+    }
+
     private RSAPublicKey findPublicKey(String keyId) {
         JsonNode keys = getAppleKeys();
         RSAPublicKey publicKey = findPublicKey(keys, keyId);
@@ -125,6 +179,7 @@ public class AppleIdentityTokenVerifier {
         }
 
         cachedKeys = null;
+        cachedKeysAt = null;
         publicKey = findPublicKey(getAppleKeys(), keyId);
         if (publicKey != null) {
             return publicKey;
@@ -148,13 +203,15 @@ public class AppleIdentityTokenVerifier {
     }
 
     private JsonNode getAppleKeys() {
-        if (cachedKeys != null) {
+        Instant now = Instant.now(clock);
+        if (cachedKeys != null && cachedKeysAt != null && now.isBefore(cachedKeysAt.plus(JWKS_CACHE_TTL))) {
             return cachedKeys;
         }
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(appleAuthProperties.jwksUrl())
+                    .timeout(JWKS_HTTP_TIMEOUT)
                     .GET()
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -163,6 +220,7 @@ public class AppleIdentityTokenVerifier {
             }
 
             cachedKeys = objectMapper.readTree(response.body()).get("keys");
+            cachedKeysAt = now;
             return cachedKeys;
         } catch (AuthenticationRequiredException exception) {
             throw exception;

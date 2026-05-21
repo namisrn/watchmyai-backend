@@ -16,7 +16,7 @@ public record QuotaCheckResult(
         int monthlyUsagePercent,
         BigDecimal estimatedMonthlyCostEur,
         BigDecimal monthlyCostCapEur,
-        String throttleState,
+        QuotaState throttleState,
         PlanLimits limits
 ) {
 }
