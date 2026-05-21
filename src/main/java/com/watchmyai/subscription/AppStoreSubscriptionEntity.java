@@ -144,44 +144,31 @@ public class AppStoreSubscriptionEntity {
         return updatedAt;
     }
 
+    public Instant getLastVerifiedAt() {
+        return lastVerifiedAt;
+    }
+
     public String getVerificationSource() {
         return verificationSource;
     }
 
-    public void update(
-            String transactionId,
-            String productId,
-            PlanType planType,
-            String environment,
-            UUID appAccountToken,
-            String status,
-            boolean active,
-            Instant expiresAt,
-            Instant revokedAt,
-            String revocationReason,
-            boolean gracePeriod,
-            boolean billingRetry,
-            String verificationSource,
-            String lastNotificationType,
-            String lastNotificationSubtype,
-            Instant lastVerifiedAt
-    ) {
-        this.transactionId = transactionId;
-        this.productId = productId;
-        this.planType = planType;
-        this.environment = environment;
-        this.appAccountToken = appAccountToken;
-        this.status = status;
-        this.active = active;
-        this.expiresAt = expiresAt;
-        this.revokedAt = revokedAt;
-        this.revocationReason = revocationReason;
-        this.gracePeriod = gracePeriod;
-        this.billingRetry = billingRetry;
-        this.verificationSource = verificationSource;
-        this.lastNotificationType = lastNotificationType;
-        this.lastNotificationSubtype = lastNotificationSubtype;
-        this.lastVerifiedAt = lastVerifiedAt;
+    public void update(SubscriptionUpdatePayload p) {
+        this.transactionId = p.transactionId();
+        this.productId = p.productId();
+        this.planType = p.planType();
+        this.environment = p.environment();
+        this.appAccountToken = p.appAccountToken();
+        this.status = p.status();
+        this.active = p.active();
+        this.expiresAt = p.expiresAt();
+        this.revokedAt = p.revokedAt();
+        this.revocationReason = p.revocationReason();
+        this.gracePeriod = p.gracePeriod();
+        this.billingRetry = p.billingRetry();
+        this.verificationSource = p.verificationSource();
+        this.lastNotificationType = p.lastNotificationType();
+        this.lastNotificationSubtype = p.lastNotificationSubtype();
+        this.lastVerifiedAt = p.lastVerifiedAt();
     }
 
     public void deactivate(String status, Instant lastVerifiedAt) {

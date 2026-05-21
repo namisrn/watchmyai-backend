@@ -12,7 +12,11 @@ RUN ./gradlew bootJar --no-daemon
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY --from=build /app/build/libs/*.jar app.jar
+RUN useradd -r -u 10001 appuser
+
+COPY --from=build --chown=appuser:appuser /app/build/libs/*.jar app.jar
+
+USER appuser
 
 EXPOSE 8080
 

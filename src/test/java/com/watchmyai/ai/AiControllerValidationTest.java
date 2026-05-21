@@ -33,6 +33,7 @@ class AiControllerValidationTest {
     void askReturnsOkForValidRequest() throws Exception {
         when(aiService.ask(any(AskAIRequest.class)))
                 .thenReturn(new AskAIResponse(
+                        AskAIResponse.STATUS_COMPLETED,
                         "Test answer",
                         "gpt-5.4-mini",
                         PlanType.FREE,

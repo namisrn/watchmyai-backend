@@ -34,7 +34,7 @@ public record QuotaStatusResponse(
                 quota.monthlyUsagePercent(),
                 quota.estimatedMonthlyCostEur(),
                 quota.monthlyCostCapEur(),
-                quota.throttleState()
+                quota.throttleState().toApiValue()
         );
     }
 }

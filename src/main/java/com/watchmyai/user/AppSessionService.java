@@ -1,6 +1,8 @@
 package com.watchmyai.user;
 
 import com.watchmyai.config.SessionProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.util.Optional;
 @Service
 public class AppSessionService {
 
+    private static final Logger log = LoggerFactory.getLogger(AppSessionService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserSessionRepository userSessionRepository;
@@ -46,6 +49,7 @@ public class AppSessionService {
                 expiresAt
         );
         userSessionRepository.save(session);
+        log.info("Session created userId={} source={} expiresAt={}", appUser.getUserId(), source, expiresAt);
 
         return new CreatedSession(
                 sessionToken,

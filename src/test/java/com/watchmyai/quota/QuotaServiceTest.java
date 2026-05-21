@@ -31,7 +31,7 @@ class QuotaServiceTest {
         assertThat(quota.dailyRemainingRequests()).isEqualTo(4);
         assertThat(quota.monthlyRemainingRequests()).isEqualTo(13);
         assertThat(quota.remainingRequests()).isEqualTo(4);
-        assertThat(quota.throttleState()).isEqualTo("normal");
+        assertThat(quota.throttleState()).isEqualTo(QuotaState.NORMAL);
     }
 
     @Test
@@ -51,6 +51,58 @@ class QuotaServiceTest {
         assertThat(quota.dailyRemainingRequests()).isZero();
         assertThat(quota.monthlyRemainingRequests()).isEqualTo(13);
         assertThat(quota.remainingRequests()).isZero();
-        assertThat(quota.throttleState()).isEqualTo("capped");
+        assertThat(quota.throttleState()).isEqualTo(QuotaState.CAPPED);
+    }
+
+    @Test
+    void plusPlanEntersCarefulStateAt70PercentMonthlyUsage() {
+        // PLUS: 100 daily / 1000 monthly
+        when(usageService.getCurrentUsage())
+                .thenReturn(new UsageSnapshot(
+                        0,
+                        10,
+                        700,
+                        0,
+                        new BigDecimal("0.50000")
+                ));
+
+        QuotaCheckResult quota = quotaService.checkQuota(PlanType.PLUS);
+
+        assertThat(quota.requestAllowed()).isTrue();
+        assertThat(quota.throttleState()).isEqualTo(QuotaState.CAREFUL);
+    }
+
+    @Test
+    void plusPlanEntersRestrictedStateAt90PercentMonthlyUsage() {
+        when(usageService.getCurrentUsage())
+                .thenReturn(new UsageSnapshot(
+                        0,
+                        10,
+                        900,
+                        0,
+                        new BigDecimal("0.50000")
+                ));
+
+        QuotaCheckResult quota = quotaService.checkQuota(PlanType.PLUS);
+
+        assertThat(quota.requestAllowed()).isTrue();
+        assertThat(quota.throttleState()).isEqualTo(QuotaState.RESTRICTED);
+    }
+
+    @Test
+    void plusPlanCapsWhenMonthlyCostCapIsExceeded() {
+        when(usageService.getCurrentUsage())
+                .thenReturn(new UsageSnapshot(
+                        0,
+                        0,
+                        0,
+                        0,
+                        new BigDecimal("999.000000")
+                ));
+
+        QuotaCheckResult quota = quotaService.checkQuota(PlanType.PLUS);
+
+        assertThat(quota.requestAllowed()).isFalse();
+        assertThat(quota.throttleState()).isEqualTo(QuotaState.CAPPED);
     }
 }
