@@ -21,22 +21,61 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class AiRequestRateLimitFilterTest {
+class ApiRateLimitFilterTest {
 
     @Test
     void usesInMemoryLimitInTestProfile() throws Exception {
-        AiRequestRateLimitFilter filter = newFilter(null, "test");
+        ApiRateLimitFilter filter = newFilter(null, "test");
 
         for (int index = 0; index < 30; index++) {
-            MockHttpServletResponse response = doAiAsk(filter, "198.51.100.10");
+            MockHttpServletResponse response = doPost(filter, "/api/v1/ai/ask", "198.51.100.10");
 
             assertThat(response.getStatus()).isEqualTo(200);
         }
 
-        MockHttpServletResponse blocked = doAiAsk(filter, "198.51.100.10");
+        MockHttpServletResponse blocked = doPost(filter, "/api/v1/ai/ask", "198.51.100.10");
 
         assertThat(blocked.getStatus()).isEqualTo(429);
-        assertThat(blocked.getContentAsString()).contains("Too many AI requests");
+        assertThat(blocked.getContentAsString()).contains("Too many requests");
+    }
+
+    @Test
+    void appliesStricterLimitToAppleAuthEndpoint() throws Exception {
+        ApiRateLimitFilter filter = newFilter(null, "test");
+
+        for (int index = 0; index < 10; index++) {
+            MockHttpServletResponse response = doPost(filter, "/api/v1/auth/apple", "198.51.100.11");
+
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletResponse blocked = doPost(filter, "/api/v1/auth/apple", "198.51.100.11");
+
+        assertThat(blocked.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void appleAuthAndAiAskUseSeparateBuckets() throws Exception {
+        ApiRateLimitFilter filter = newFilter(null, "test");
+
+        for (int index = 0; index < 10; index++) {
+            doPost(filter, "/api/v1/auth/apple", "198.51.100.12");
+        }
+
+        MockHttpServletResponse aiAsk = doPost(filter, "/api/v1/ai/ask", "198.51.100.12");
+
+        assertThat(aiAsk.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void doesNotRateLimitUnlistedEndpoints() throws Exception {
+        ApiRateLimitFilter filter = newFilter(null, "test");
+
+        for (int index = 0; index < 50; index++) {
+            MockHttpServletResponse response = doPost(filter, "/api/v1/subscription/status", "198.51.100.13");
+
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
     }
 
     @Test
@@ -47,10 +86,10 @@ class AiRequestRateLimitFilterTest {
         when(redisTemplate.opsForValue()).thenReturn(operations);
         when(operations.increment(anyString())).thenReturn(1L, 31L);
         when(redisTemplate.expire(anyString(), any(Duration.class))).thenReturn(true);
-        AiRequestRateLimitFilter filter = newFilter(redisTemplate, "prod");
+        ApiRateLimitFilter filter = newFilter(redisTemplate, "prod");
 
-        MockHttpServletResponse allowed = doAiAsk(filter, "198.51.100.20");
-        MockHttpServletResponse blocked = doAiAsk(filter, "198.51.100.20");
+        MockHttpServletResponse allowed = doPost(filter, "/api/v1/ai/ask", "198.51.100.20");
+        MockHttpServletResponse blocked = doPost(filter, "/api/v1/ai/ask", "198.51.100.20");
 
         assertThat(allowed.getStatus()).isEqualTo(200);
         assertThat(blocked.getStatus()).isEqualTo(429);
@@ -59,18 +98,19 @@ class AiRequestRateLimitFilterTest {
 
     @Test
     void rejectsMissingRedisInProduction() {
-        AiRequestRateLimitFilter filter = newFilter(null, "prod");
+        ApiRateLimitFilter filter = newFilter(null, "prod");
 
-        assertThatThrownBy(() -> doAiAsk(filter, "198.51.100.30"))
+        assertThatThrownBy(() -> doPost(filter, "/api/v1/ai/ask", "198.51.100.30"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Redis rate limiter is required");
     }
 
-    private MockHttpServletResponse doAiAsk(
-            AiRequestRateLimitFilter filter,
+    private MockHttpServletResponse doPost(
+            ApiRateLimitFilter filter,
+            String path,
             String remoteAddress
     ) throws ServletException, IOException {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/ai/ask");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
         request.setRemoteAddr(remoteAddress);
         request.setAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE, "test-request-id");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -78,7 +118,7 @@ class AiRequestRateLimitFilterTest {
         return response;
     }
 
-    private AiRequestRateLimitFilter newFilter(
+    private ApiRateLimitFilter newFilter(
             StringRedisTemplate redisTemplate,
             String activeProfile
     ) {
@@ -89,6 +129,6 @@ class AiRequestRateLimitFilterTest {
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles()).thenReturn(new String[]{activeProfile});
 
-        return new AiRequestRateLimitFilter(provider, environment);
+        return new ApiRateLimitFilter(provider, environment);
     }
 }

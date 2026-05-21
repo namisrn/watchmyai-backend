@@ -1,7 +1,9 @@
 package com.watchmyai.ai;
 
 import com.watchmyai.quota.PlanType;
+import com.watchmyai.quota.QuotaState;
 import jakarta.persistence.*;
+import java.util.Locale;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,7 +22,9 @@ import java.time.Instant;
 public class AiRequestLogEntity {
 
     private static final String STATUS_PROCESSING = "PROCESSING";
-    private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_COMPLETED  = "COMPLETED";
+    private static final String STATUS_BLOCKED    = "BLOCKED";
+    private static final String STATUS_FAILED     = "FAILED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -113,7 +117,7 @@ public class AiRequestLogEntity {
         this.monthlyUsagePercent = 0;
         this.estimatedMonthlyCostEur = BigDecimal.ZERO;
         this.monthlyCostCapEur = BigDecimal.ZERO;
-        this.throttleState = "processing";
+        this.throttleState = QuotaState.NORMAL.toApiValue();
     }
 
     public AiRequestLogEntity(
@@ -171,12 +175,13 @@ public class AiRequestLogEntity {
     }
 
     public boolean isCompleted() {
-        return STATUS_COMPLETED.equals(status);
+        return !STATUS_PROCESSING.equals(status);
     }
 
     public AskAIResponse toInProgressResponse() {
         return new AskAIResponse(
-                "Deine Anfrage wird bereits verarbeitet. Bitte versuche es gleich erneut.",
+                AskAIResponse.STATUS_PROCESSING,
+                "Deine Anfrage wird verarbeitet.",
                 "none",
                 planType,
                 false,
@@ -184,7 +189,7 @@ public class AiRequestLogEntity {
                 monthlyUsagePercent,
                 estimatedMonthlyCostEur,
                 monthlyCostCapEur,
-                "processing"
+                QuotaState.NORMAL.toApiValue()
         );
     }
 
@@ -194,7 +199,7 @@ public class AiRequestLogEntity {
             int outputTokens,
             BigDecimal estimatedRequestCostEur
     ) {
-        this.status = STATUS_COMPLETED;
+        this.status = response.status().toUpperCase(Locale.ROOT);
         this.planType = response.planType();
         this.modelUsed = response.modelUsed();
         this.answer = response.answer();
@@ -215,6 +220,7 @@ public class AiRequestLogEntity {
         }
 
         return new AskAIResponse(
+                terminalStatus(),
                 answer,
                 modelUsed,
                 planType,
@@ -225,5 +231,17 @@ public class AiRequestLogEntity {
                 monthlyCostCapEur,
                 throttleState
         );
+    }
+
+    private String terminalStatus() {
+        // New-style records: status column holds the actual terminal value
+        if (STATUS_BLOCKED.equals(status)) return AskAIResponse.STATUS_BLOCKED;
+        if (STATUS_FAILED.equals(status))  return AskAIResponse.STATUS_FAILED;
+        // Legacy and new COMPLETED records: derive from requestAllowed
+        if (requestAllowed) return AskAIResponse.STATUS_COMPLETED;
+        // Legacy records stored status="COMPLETED" for failures — distinguish via throttleState sentinel
+        return "openai_error".equals(throttleState)
+                ? AskAIResponse.STATUS_FAILED
+                : AskAIResponse.STATUS_BLOCKED;
     }
 }

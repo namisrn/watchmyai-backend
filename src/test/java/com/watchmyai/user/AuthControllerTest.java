@@ -76,7 +76,7 @@ class AuthControllerTest {
     void appleAuthCreatesBackendSession() throws Exception {
         AppleUserIdentity appleIdentity = new AppleUserIdentity("subject-123", "user@example.com");
         AppUserEntity appUser = new AppUserEntity("subject-123", "apple-user", "user@example.com");
-        when(appleIdentityTokenVerifier.verify("identity-token"))
+        when(appleIdentityTokenVerifier.verify(eq("identity-token"), any()))
                 .thenReturn(appleIdentity);
         when(appUserService.findOrCreateAppleUser(appleIdentity, "apple-user"))
                 .thenReturn(appUser);

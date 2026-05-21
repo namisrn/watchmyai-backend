@@ -37,7 +37,7 @@ public class AuthController {
 
     @PostMapping("/apple")
     public AuthSessionResponse apple(@Valid @RequestBody AppleAuthRequest request) {
-        AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(request.identityToken());
+        AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(request.identityToken(), request.nonce());
         AppUserEntity appUser = appUserService.findOrCreateAppleUser(appleUser, request.appleUserId());
 
         return AuthSessionResponse.from(appSessionService.createSession(

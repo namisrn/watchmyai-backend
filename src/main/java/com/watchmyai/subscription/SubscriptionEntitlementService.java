@@ -2,49 +2,34 @@ package com.watchmyai.subscription;
 
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
-import com.apple.itunes.storekit.model.Status;
-import com.watchmyai.quota.PlanType;
-import com.watchmyai.quota.UserPlanService;
 import com.watchmyai.user.AppUserService;
 import com.watchmyai.user.UserContextService;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class SubscriptionEntitlementService {
 
-    private final AppStoreSubscriptionRepository subscriptionRepository;
-    private final SubscriptionProductCatalog productCatalog;
-    private final UserPlanService userPlanService;
+    private final SubscriptionTransactionService transactionService;
     private final UserContextService userContextService;
     private final AppUserService appUserService;
     private final Environment environment;
-    private final Clock clock;
 
     public SubscriptionEntitlementService(
-            AppStoreSubscriptionRepository subscriptionRepository,
-            SubscriptionProductCatalog productCatalog,
-            UserPlanService userPlanService,
+            SubscriptionTransactionService transactionService,
             UserContextService userContextService,
             AppUserService appUserService,
-            Environment environment,
-            Clock clock
+            Environment environment
     ) {
-        this.subscriptionRepository = subscriptionRepository;
-        this.productCatalog = productCatalog;
-        this.userPlanService = userPlanService;
+        this.transactionService = transactionService;
         this.userContextService = userContextService;
         this.appUserService = appUserService;
         this.environment = environment;
-        this.clock = clock;
     }
 
     @Transactional
@@ -55,7 +40,7 @@ public class SubscriptionEntitlementService {
         String userId = userContextService.getCurrentUser().userId();
 
         if (verificationResult.verified()) {
-            return upsertFromTransaction(
+            return transactionService.processTransaction(
                     userId,
                     verificationResult.payload(),
                     verificationResult.verificationSource(),
@@ -69,37 +54,11 @@ public class SubscriptionEntitlementService {
             throw new IllegalArgumentException("App Store transaction verification is required.");
         }
 
-        PlanType planType = productCatalog
-                .findPlanType(request.productId())
-                .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
-
-        AppStoreSubscriptionEntity subscription = subscriptionRepository
-                .findByOriginalTransactionId(request.originalTransactionId())
-                .orElseGet(() -> new AppStoreSubscriptionEntity(userId, request.originalTransactionId()));
-
-        Instant now = Instant.now(clock);
-        subscription.update(
-                request.transactionId(),
-                request.productId(),
-                planType,
-                request.environment(),
-                parseAppAccountToken(request.appAccountToken()),
-                "UNVERIFIED_ACTIVE",
-                true,
-                null,
-                null,
-                null,
-                false,
-                false,
-                verificationResult.verificationSource(),
-                null,
-                null,
-                now
+        return transactionService.processUnverifiedTransaction(
+                userId,
+                request,
+                verificationResult.verificationSource()
         );
-
-        subscriptionRepository.save(subscription);
-        PlanType resultingPlan = refreshUserPlan(userId);
-        return getCurrentActiveStatus(userId, resultingPlan);
     }
 
     @Transactional
@@ -112,7 +71,7 @@ public class SubscriptionEntitlementService {
         }
 
         String originalTransactionId = transaction.getOriginalTransactionId();
-        Optional<AppStoreSubscriptionEntity> existing = subscriptionRepository
+        Optional<AppStoreSubscriptionEntity> existing = transactionService
                 .findByOriginalTransactionId(originalTransactionId);
 
         if (existing.isEmpty()) {
@@ -124,12 +83,12 @@ public class SubscriptionEntitlementService {
             return appUserService
                     .findByAppAccountToken(appAccountToken)
                     .map(user -> {
-                        upsertFromTransaction(
+                        transactionService.processTransaction(
                                 user.getUserId(),
                                 transaction,
                                 "app_store_server_notification",
-                                stringValue(payload.getRawNotificationType(), payload.getNotificationType()),
-                                stringValue(payload.getRawSubtype(), payload.getSubtype()),
+                                notificationType(payload),
+                                notificationSubtype(payload),
                                 payload.getData() == null ? null : payload.getData().getStatus()
                         );
                         return new AppStoreNotificationResponse(true, "plan_updated_by_app_account_token");
@@ -137,13 +96,12 @@ public class SubscriptionEntitlementService {
                     .orElseGet(() -> new AppStoreNotificationResponse(true, "unknown_app_account_token"));
         }
 
-        AppStoreSubscriptionEntity subscription = existing.get();
-        upsertFromTransaction(
-                subscription.getUserId(),
+        transactionService.processTransaction(
+                existing.get().getUserId(),
                 transaction,
                 "app_store_server_notification",
-                stringValue(payload.getRawNotificationType(), payload.getNotificationType()),
-                stringValue(payload.getRawSubtype(), payload.getSubtype()),
+                notificationType(payload),
+                notificationSubtype(payload),
                 payload.getData() == null ? null : payload.getData().getStatus()
         );
 
@@ -153,135 +111,15 @@ public class SubscriptionEntitlementService {
     @Transactional
     public SubscriptionStatusResponse getCurrentStatus() {
         String userId = userContextService.getCurrentUser().userId();
-        Instant now = Instant.now(clock);
-        subscriptionRepository
-                .findByUserIdAndActiveTrue(userId)
-                .stream()
-                .filter(subscription -> subscription.getExpiresAt() != null && !subscription.getExpiresAt().isAfter(now))
-                .forEach(subscription -> subscription.deactivate("EXPIRED", now));
-
-        refreshUserPlan(userId);
-
-        return subscriptionRepository
-                .findByUserIdAndActiveTrue(userId)
-                .stream()
-                .max(Comparator.comparing(subscription -> subscription.getPlanType().ordinal()))
-                .map(this::toResponse)
-                .orElseGet(() -> new SubscriptionStatusResponse(PlanType.FREE, null, true));
+        return transactionService.getActiveStatus(userId);
     }
 
-    private SubscriptionStatusResponse upsertFromTransaction(
-            String userId,
-            JWSTransactionDecodedPayload payload,
-            String verificationSource,
-            String notificationType,
-            String notificationSubtype,
-            Status appStoreStatus
-    ) {
-        String productId = payload.getProductId();
-        PlanType planType = productCatalog
-                .findPlanType(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
-
-        String originalTransactionId = payload.getOriginalTransactionId();
-        AppStoreSubscriptionEntity subscription = subscriptionRepository
-                .findByOriginalTransactionId(originalTransactionId)
-                .orElseGet(() -> new AppStoreSubscriptionEntity(userId, originalTransactionId));
-
-        Instant now = Instant.now(clock);
-        Instant expiresAt = toInstant(payload.getExpiresDate());
-        Instant revokedAt = toInstant(payload.getRevocationDate());
-        boolean billingRetry = appStoreStatus == Status.BILLING_RETRY;
-        boolean gracePeriod = appStoreStatus == Status.BILLING_GRACE_PERIOD;
-        boolean active = revokedAt == null
-                && !Boolean.TRUE.equals(payload.getIsUpgraded())
-                && (expiresAt == null || expiresAt.isAfter(now))
-                && appStoreStatus != Status.EXPIRED
-                && appStoreStatus != Status.REVOKED;
-
-        subscription.update(
-                payload.getTransactionId(),
-                productId,
-                planType,
-                stringValue(payload.getRawEnvironment(), payload.getEnvironment()),
-                payload.getAppAccountToken(),
-                appStoreStatus == null ? (active ? "ACTIVE" : "INACTIVE") : appStoreStatus.name(),
-                active,
-                expiresAt,
-                revokedAt,
-                payload.getRawRevocationReason() == null ? null : payload.getRawRevocationReason().toString(),
-                gracePeriod,
-                billingRetry,
-                verificationSource,
-                notificationType,
-                notificationSubtype,
-                now
-        );
-
-        subscriptionRepository.save(subscription);
-        PlanType resultingPlan = refreshUserPlan(userId);
-        return getCurrentActiveStatus(userId, resultingPlan);
+    private String notificationType(ResponseBodyV2DecodedPayload payload) {
+        return transactionService.stringValue(payload.getRawNotificationType(), payload.getNotificationType());
     }
 
-    private PlanType refreshUserPlan(String userId) {
-        PlanType activePlan = subscriptionRepository
-                .findByUserIdAndActiveTrue(userId)
-                .stream()
-                .map(AppStoreSubscriptionEntity::getPlanType)
-                .max(Comparator.comparing(Enum::ordinal))
-                .orElse(PlanType.FREE);
-
-        userPlanService.setCurrentPlanForUser(userId, activePlan);
-        return activePlan;
-    }
-
-    private SubscriptionStatusResponse getCurrentActiveStatus(String userId, PlanType resultingPlan) {
-        return subscriptionRepository
-                .findByUserIdAndActiveTrue(userId)
-                .stream()
-                .filter(subscription -> subscription.getPlanType() == resultingPlan)
-                .max(Comparator.comparing(
-                        AppStoreSubscriptionEntity::getUpdatedAt,
-                        Comparator.nullsLast(Comparator.naturalOrder())
-                ))
-                .map(this::toResponse)
-                .orElseGet(() -> new SubscriptionStatusResponse(PlanType.FREE, null, true));
-    }
-
-    private SubscriptionStatusResponse toResponse(AppStoreSubscriptionEntity subscription) {
-        return new SubscriptionStatusResponse(
-                subscription.getPlanType(),
-                subscription.getProductId(),
-                subscription.isActive() && isServerVerified(subscription),
-                subscription.getVerificationSource(),
-                subscription.getTransactionId(),
-                subscription.getOriginalTransactionId(),
-                subscription.getEnvironment(),
-                subscription.getExpiresAt(),
-                subscription.getRevokedAt(),
-                subscription.getStatus(),
-                subscription.getAppAccountToken()
-        );
-    }
-
-    private boolean isServerVerified(AppStoreSubscriptionEntity subscription) {
-        return "app_store_server_library".equals(subscription.getVerificationSource())
-                || "app_store_server_notification".equals(subscription.getVerificationSource());
-    }
-
-    private Instant toInstant(Long milliseconds) {
-        return milliseconds == null ? null : Instant.ofEpochMilli(milliseconds);
-    }
-
-    private String stringValue(String rawValue, Object typedValue) {
-        if (rawValue != null && !rawValue.isBlank()) {
-            return rawValue;
-        }
-        return typedValue == null ? null : typedValue.toString();
-    }
-
-    private UUID parseAppAccountToken(String raw) {
-        return raw == null || raw.isBlank() ? null : UUID.fromString(raw);
+    private String notificationSubtype(ResponseBodyV2DecodedPayload payload) {
+        return transactionService.stringValue(payload.getRawSubtype(), payload.getSubtype());
     }
 
     private boolean isDevelopmentProfile() {

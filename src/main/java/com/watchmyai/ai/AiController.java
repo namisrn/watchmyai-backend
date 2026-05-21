@@ -17,4 +17,9 @@ public class AiController {
     public AskAIResponse ask(@Valid @RequestBody AskAIRequest request) {
         return aiService.ask(request);
     }
+
+    @GetMapping("/ask/{clientRequestId}")
+    public AskAIResponse askStatus(@PathVariable String clientRequestId) {
+        return aiService.jobStatus(clientRequestId);
+    }
 }
