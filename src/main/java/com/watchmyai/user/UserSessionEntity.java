@@ -77,6 +77,10 @@ public class UserSessionEntity {
         revokedAt = now;
     }
 
+    public void extend(Instant newExpiresAt) {
+        expiresAt = newExpiresAt;
+    }
+
     public Instant getExpiresAt() {
         return expiresAt;
     }
