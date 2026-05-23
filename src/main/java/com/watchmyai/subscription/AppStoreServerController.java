@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +26,10 @@ public class AppStoreServerController {
     private final AppStoreServerService appStoreServerService;
     private final SubscriptionEntitlementService subscriptionEntitlementService;
     private final UserContextService userContextService;
+    /// Redis is **required** for Apple-S2S notification dedup. Direct (non-`ObjectProvider`)
+    /// injection makes the bean a hard dependency — Spring refuses to start the application
+    /// if `StringRedisTemplate` is missing, surfacing the misconfiguration at startup instead
+    /// of letting duplicate notifications silently apply twice (plan downgrade × 2, refund × 2).
     private final StringRedisTemplate redisTemplate;
     private final Counter notificationDuplicateCounter;
 
@@ -34,13 +37,13 @@ public class AppStoreServerController {
             AppStoreServerService appStoreServerService,
             SubscriptionEntitlementService subscriptionEntitlementService,
             UserContextService userContextService,
-            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            StringRedisTemplate redisTemplate,
             MeterRegistry meterRegistry
     ) {
         this.appStoreServerService = appStoreServerService;
         this.subscriptionEntitlementService = subscriptionEntitlementService;
         this.userContextService = userContextService;
-        this.redisTemplate = redisTemplateProvider.getIfAvailable();
+        this.redisTemplate = redisTemplate;
         this.notificationDuplicateCounter = meterRegistry.counter("watchmyai.appstore.notification_duplicate");
     }
 
@@ -73,9 +76,6 @@ public class AppStoreServerController {
     }
 
     private boolean markAsSeen(String notificationUUID) {
-        if (redisTemplate == null) {
-            return true;
-        }
         String key = NOTIFICATION_KEY_PREFIX + notificationUUID;
         Boolean isNew = redisTemplate.opsForValue().setIfAbsent(key, "1", NOTIFICATION_TTL);
         return Boolean.TRUE.equals(isNew);

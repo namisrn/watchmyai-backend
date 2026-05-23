@@ -151,7 +151,12 @@ public class AiService {
         }
 
         QuotaCheckResult quota = quotaService.checkQuota(userId, currentPlan);
-        boolean usePremiumModel = shouldUsePremiumModel(request, currentPlan, quota);
+        // ATOMIC premium reservation — replaces the previous snapshot-then-act check
+        // (which let N concurrent Pro requests all pass the gate at the same time).
+        boolean usePremiumModel = false;
+        if (wantsPremiumModel(request, currentPlan)) {
+            usePremiumModel = usageService.reservePremium(userId, currentPlan);
+        }
         String model = modelRouter.selectModel(request, currentPlan, usePremiumModel);
 
         try {
@@ -169,7 +174,7 @@ public class AiService {
             int outputTokens = openAiResponse.outputTokens();
             BigDecimal estimatedRequestCostEur = costEstimatorService.estimateCostEur(model, inputTokens, outputTokens);
 
-            usageService.finalizeRequest(userId, currentPlan, estimatedRequestCostEur, usePremiumModel);
+            usageService.finalizeRequest(userId, currentPlan, estimatedRequestCostEur);
             QuotaCheckResult updatedQuota = quotaService.checkQuota(userId, currentPlan);
 
             AskAIResponse response = new AskAIResponse(
@@ -189,6 +194,11 @@ public class AiService {
             // OpenAI failure (or any unexpected error): refund the reserved slot and mark the
             // job failed so the polling client receives a terminal error instead of hanging.
             usageService.refundRequest(userId, currentPlan);
+            if (usePremiumModel) {
+                // Also refund the atomically-reserved premium slot — otherwise a failed
+                // call would still count against the user's monthly premium budget.
+                usageService.refundPremium(userId);
+            }
             String message = exception instanceof OpenAiClientException
                     ? exception.getMessage()
                     : "Die Anfrage konnte nicht verarbeitet werden.";
@@ -250,15 +260,12 @@ public class AiService {
         aiRequestLogRepository.save(requestLog);
     }
 
-    private boolean shouldUsePremiumModel(
-            AskAIRequest request,
-            PlanType currentPlan,
-            QuotaCheckResult quota
-    ) {
-        boolean premiumRequested = "premium_reasoning".equals(request.mode());
-        boolean proUser = currentPlan == PlanType.PRO;
-        boolean premiumRequestsAvailable = quota.usedPremiumRequests() < quota.monthlyPremiumRequestLimit();
-
-        return premiumRequested && proUser && premiumRequestsAvailable;
+    /**
+     * Fast-path gate: only ever try to reserve a premium slot when the request asks for the
+     * premium mode AND the user is on the Pro plan. The actual quota check happens atomically
+     * inside {@code usageService.reservePremium(...)} so the snapshot-then-act race is gone.
+     */
+    private boolean wantsPremiumModel(AskAIRequest request, PlanType currentPlan) {
+        return "premium_reasoning".equals(request.mode()) && currentPlan == PlanType.PRO;
     }
 }

@@ -156,7 +156,7 @@ class AiServiceIdempotencyTest {
         assertThat(response.status()).isEqualTo(AskAIResponse.STATUS_PROCESSING);
         verify(usageService).reserveRequest(USER_ID, PlanType.FREE);
         verify(openAiClient).ask("gpt-5.4-mini", "system prompt", "Hallo", 180);
-        verify(usageService).finalizeRequest(USER_ID, PlanType.FREE, new BigDecimal("0.000020"), false);
+        verify(usageService).finalizeRequest(USER_ID, PlanType.FREE, new BigDecimal("0.000020"));
         verify(usageService, never()).refundRequest(any(), any());
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }
@@ -179,7 +179,7 @@ class AiServiceIdempotencyTest {
         assertThat(response.requestAllowed()).isFalse();
         verifyNoInteractions(modelRouter, promptBuilder, openAiClient, costEstimatorService);
         verify(usageService).reserveRequest(USER_ID, PlanType.FREE);
-        verify(usageService, never()).finalizeRequest(any(), any(), any(), anyBoolean());
+        verify(usageService, never()).finalizeRequest(any(), any(), any());
         verify(usageService, never()).refundRequest(any(), any());
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }
@@ -206,7 +206,7 @@ class AiServiceIdempotencyTest {
 
         assertThat(response.status()).isEqualTo(AskAIResponse.STATUS_PROCESSING);
         verify(usageService).refundRequest(USER_ID, PlanType.FREE);
-        verify(usageService, never()).finalizeRequest(any(), any(), any(), anyBoolean());
+        verify(usageService, never()).finalizeRequest(any(), any(), any());
         verify(costEstimatorService, never()).estimateCostEur(any(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }

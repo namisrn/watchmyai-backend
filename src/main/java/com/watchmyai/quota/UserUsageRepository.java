@@ -70,13 +70,14 @@ public interface UserUsageRepository extends JpaRepository<UserUsageEntity, Long
     );
 
     /**
-     * Records the actual cost and premium usage after a successful provider call.
+     * Records the actual cost after a successful provider call. Premium-slot accounting is
+     * handled separately by {@link #reservePremiumSlot} (decided BEFORE the provider call,
+     * so the gate is atomic instead of a snapshot-then-act race).
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE UserUsageEntity u SET
                 u.estimatedMonthlyCostEur = u.estimatedMonthlyCostEur + :costEur,
-                u.usedPremiumRequests = u.usedPremiumRequests + :premiumIncrement,
                 u.updatedAt = :now
             WHERE u.userId = :userId
                 AND u.periodYearMonth = :periodYearMonth
@@ -85,7 +86,46 @@ public interface UserUsageRepository extends JpaRepository<UserUsageEntity, Long
             @Param("userId") String userId,
             @Param("periodYearMonth") String periodYearMonth,
             @Param("costEur") BigDecimal costEur,
-            @Param("premiumIncrement") int premiumIncrement,
+            @Param("now") Instant now
+    );
+
+    /**
+     * Atomically reserves one premium slot. Increments {@code usedPremiumRequests} only when
+     * the limit is still satisfied — closes the race in the AI worker where N concurrent Pro
+     * requests previously all read a stale snapshot and all decided "premium available".
+     * Returns 1 when reserved, 0 when the premium limit is exhausted or {@code premiumLimit <= 0}.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE UserUsageEntity u SET
+                u.usedPremiumRequests = u.usedPremiumRequests + 1,
+                u.updatedAt = :now
+            WHERE u.userId = :userId
+                AND u.periodYearMonth = :periodYearMonth
+                AND :premiumLimit > 0
+                AND u.usedPremiumRequests < :premiumLimit
+            """)
+    int reservePremiumSlot(
+            @Param("userId") String userId,
+            @Param("periodYearMonth") String periodYearMonth,
+            @Param("premiumLimit") int premiumLimit,
+            @Param("now") Instant now
+    );
+
+    /**
+     * Refunds a previously reserved premium slot when the provider call subsequently failed.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE UserUsageEntity u SET
+                u.usedPremiumRequests = CASE WHEN u.usedPremiumRequests > 0 THEN u.usedPremiumRequests - 1 ELSE 0 END,
+                u.updatedAt = :now
+            WHERE u.userId = :userId
+                AND u.periodYearMonth = :periodYearMonth
+            """)
+    int refundPremiumSlot(
+            @Param("userId") String userId,
+            @Param("periodYearMonth") String periodYearMonth,
             @Param("now") Instant now
     );
 }

@@ -136,22 +136,24 @@ class UsageServiceTest {
     }
 
     @Test
-    void finalizeRequestRecordsCostAndPremium() {
-        usageService.finalizeRequest(PlanType.PRO, new BigDecimal("0.020000"), true);
+    void finalizeRequestRecordsCost() {
+        usageService.finalizeRequest(PlanType.PRO, new BigDecimal("0.020000"));
 
+        // Premium accounting now happens at reservation time (reservePremium), not at finalize —
+        // finalizeCost only records the actual EUR cost.
         verify(userUsageRepository).finalizeCost(
                 eq(TEST_USER_ID), eq(CURRENT_PERIOD),
-                eq(new BigDecimal("0.020000")), eq(1), any(Instant.class)
+                eq(new BigDecimal("0.020000")), any(Instant.class)
         );
     }
 
     @Test
-    void finalizeRequestRecordsCostWithoutPremium() {
-        usageService.finalizeRequest(PlanType.PLUS, new BigDecimal("0.005000"), false);
+    void finalizeRequestRecordsCostForNonPremiumPlan() {
+        usageService.finalizeRequest(PlanType.PLUS, new BigDecimal("0.005000"));
 
         verify(userUsageRepository).finalizeCost(
                 eq(TEST_USER_ID), eq(CURRENT_PERIOD),
-                eq(new BigDecimal("0.005000")), eq(0), any(Instant.class)
+                eq(new BigDecimal("0.005000")), any(Instant.class)
         );
     }
 }

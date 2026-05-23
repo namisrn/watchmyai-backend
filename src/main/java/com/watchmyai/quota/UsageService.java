@@ -97,25 +97,54 @@ public class UsageService {
     }
 
     /**
-     * Records the actual cost and premium usage after a successful provider call.
+     * Records the actual cost after a successful provider call. Premium-slot accounting
+     * is handled separately by {@link #reservePremium} (atomic, before the provider call).
      */
     @Transactional
-    public void finalizeRequest(PlanType planType, BigDecimal estimatedRequestCostEur, boolean premiumRequest) {
-        finalizeRequest(getCurrentUserId(), planType, estimatedRequestCostEur, premiumRequest);
+    public void finalizeRequest(PlanType planType, BigDecimal estimatedRequestCostEur) {
+        finalizeRequest(getCurrentUserId(), planType, estimatedRequestCostEur);
     }
 
     @Transactional
     public void finalizeRequest(
             String userId,
             PlanType planType,
-            BigDecimal estimatedRequestCostEur,
-            boolean premiumRequest
+            BigDecimal estimatedRequestCostEur
     ) {
         userUsageRepository.finalizeCost(
                 userId,
                 getCurrentPeriodYearMonth(),
                 estimatedRequestCostEur,
-                premiumRequest ? 1 : 0,
+                Instant.now(clock)
+        );
+    }
+
+    /**
+     * Atomically reserves one premium slot. Returns {@code true} when the call may use the
+     * premium model, {@code false} when the premium quota is already exhausted (or the plan
+     * has no premium allotment). Must be paired with {@link #refundPremium} when the provider
+     * call subsequently fails.
+     */
+    @Transactional
+    public boolean reservePremium(String userId, PlanType planType) {
+        PlanLimits limits = planConfigService.getLimits(planType);
+        int affected = userUsageRepository.reservePremiumSlot(
+                userId,
+                getCurrentPeriodYearMonth(),
+                limits.monthlyPremiumRequestLimit(),
+                Instant.now(clock)
+        );
+        return affected > 0;
+    }
+
+    /**
+     * Refunds a previously reserved premium slot when the provider call failed.
+     */
+    @Transactional
+    public void refundPremium(String userId) {
+        userUsageRepository.refundPremiumSlot(
+                userId,
+                getCurrentPeriodYearMonth(),
                 Instant.now(clock)
         );
     }

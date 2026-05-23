@@ -4,6 +4,8 @@ import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.watchmyai.user.AppUserService;
 import com.watchmyai.user.UserContextService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,8 @@ import java.util.UUID;
 
 @Service
 public class SubscriptionEntitlementService {
+
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionEntitlementService.class);
 
     private final SubscriptionTransactionService transactionService;
     private final UserContextService userContextService;
@@ -77,6 +81,16 @@ public class SubscriptionEntitlementService {
         if (existing.isEmpty()) {
             UUID appAccountToken = transaction.getAppAccountToken();
             if (appAccountToken == null) {
+                // Orphaned notification: we have no prior record AND no appAccountToken to attribute
+                // the transaction to. Log loud so the drift is visible (Apple S2S retries succeed
+                // with HTTP 200 but the user's plan state is silently stuck without this log).
+                log.warn(
+                        "Orphan App Store notification: unknown originalTransactionId={} and no appAccountToken — plan state will not be updated. notificationUUID={} type={} subtype={}",
+                        originalTransactionId,
+                        payload.getNotificationUUID(),
+                        notificationType(payload),
+                        notificationSubtype(payload)
+                );
                 return new AppStoreNotificationResponse(true, "unknown_original_transaction");
             }
 
@@ -93,7 +107,19 @@ public class SubscriptionEntitlementService {
                         );
                         return new AppStoreNotificationResponse(true, "plan_updated_by_app_account_token");
                     })
-                    .orElseGet(() -> new AppStoreNotificationResponse(true, "unknown_app_account_token"));
+                    .orElseGet(() -> {
+                        // Token present but no user matches — likely a stale/recycled token, or a
+                        // sandbox notification leaking into prod. Loud log so the drift is traceable.
+                        log.warn(
+                                "Orphan App Store notification: appAccountToken={} resolves to no user. originalTransactionId={} notificationUUID={} type={} subtype={}",
+                                appAccountToken,
+                                originalTransactionId,
+                                payload.getNotificationUUID(),
+                                notificationType(payload),
+                                notificationSubtype(payload)
+                        );
+                        return new AppStoreNotificationResponse(true, "unknown_app_account_token");
+                    });
         }
 
         transactionService.processTransaction(
