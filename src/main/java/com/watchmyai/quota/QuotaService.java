@@ -20,10 +20,21 @@ public class QuotaService {
     }
 
     public QuotaCheckResult checkQuota(PlanType planType) {
-        PlanLimits limits = planConfigService.getLimits(planType);
-        UsageSnapshot usage = usageService.getCurrentUsage();
+        return evaluateQuota(planType, usageService.getCurrentUsage());
+    }
 
-        int lifetimeRemainingRequests = planType == PlanType.FREE
+    /**
+     * Evaluates quota for an explicit user. Used by the AI worker pool, which runs outside the
+     * HTTP request scope and cannot resolve the user from the request context.
+     */
+    public QuotaCheckResult checkQuota(String userId, PlanType planType) {
+        return evaluateQuota(planType, usageService.getUsage(userId, planType));
+    }
+
+    private QuotaCheckResult evaluateQuota(PlanType planType, UsageSnapshot usage) {
+        PlanLimits limits = planConfigService.getLimits(planType);
+
+        int lifetimeRemainingRequests = limits.lifetimeRequestLimit() > 0
                 ? Math.max(limits.lifetimeRequestLimit() - usage.usedLifetimeRequests(), 0)
                 : Integer.MAX_VALUE;
         int dailyRemainingRequests = Math.max(limits.dailyRequestLimit() - usage.usedDailyRequests(), 0);
@@ -39,7 +50,7 @@ public class QuotaService {
         int dailyUsagePercent = usagePercent(usage.usedDailyRequests(), limits.dailyRequestLimit());
         int monthlyUsagePercent = usagePercent(usage.usedMonthlyRequests(), limits.monthlyRequestLimit());
 
-        String throttleState = determineThrottleState(Math.max(dailyUsagePercent, monthlyUsagePercent), requestAllowed);
+        QuotaState throttleState = determineThrottleState(Math.max(dailyUsagePercent, monthlyUsagePercent), requestAllowed);
 
         return new QuotaCheckResult(
                 planType,
@@ -68,20 +79,17 @@ public class QuotaService {
         usageService.simulateHighCost();
     }
 
-    private String determineThrottleState(int monthlyUsagePercent, boolean requestAllowed) {
+    private QuotaState determineThrottleState(int monthlyUsagePercent, boolean requestAllowed) {
         if (!requestAllowed) {
-            return "capped";
+            return QuotaState.CAPPED;
         }
-
         if (monthlyUsagePercent >= 90) {
-            return "restricted";
+            return QuotaState.RESTRICTED;
         }
-
         if (monthlyUsagePercent >= 70) {
-            return "careful";
+            return QuotaState.CAREFUL;
         }
-
-        return "normal";
+        return QuotaState.NORMAL;
     }
 
     private int usagePercent(int usedRequests, int requestLimit) {

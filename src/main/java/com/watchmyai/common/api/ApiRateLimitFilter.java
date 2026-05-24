@@ -23,23 +23,38 @@ import java.time.Instant;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Sliding fixed-window rate limiter applied to a fixed set of sensitive endpoints. Each policy
+ * has its own counter bucket so limits do not interfere across routes. Authenticated requests
+ * are keyed by their bearer token, unauthenticated ones by remote IP.
+ */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
-public class AiRequestRateLimitFilter extends OncePerRequestFilter {
+public class ApiRateLimitFilter extends OncePerRequestFilter {
 
-    private static final String AI_ASK_PATH = "/api/v1/ai/ask";
     private static final int WINDOW_SECONDS = 60;
-    private static final int MAX_REQUESTS_PER_WINDOW = 30;
+
+    private record RateLimitPolicy(String method, String path, boolean prefixMatch, String bucket, int maxRequests) {
+    }
+
+    private static final List<RateLimitPolicy> POLICIES = List.of(
+            new RateLimitPolicy("POST", "/api/v1/ai/ask", false, "ai-ask", 30),
+            new RateLimitPolicy("GET", "/api/v1/ai/ask/", true, "ai-ask-poll", 120),
+            new RateLimitPolicy("POST", "/api/v1/auth/apple", false, "auth-apple", 10),
+            new RateLimitPolicy("POST", "/api/v1/subscription/sync", false, "subscription-sync", 20),
+            new RateLimitPolicy("POST", "/api/v1/app-store/notifications", false, "app-store-notifications", 120)
+    );
 
     private final Clock clock;
     private final StringRedisTemplate redisTemplate;
     private final Environment environment;
     private final ConcurrentHashMap<String, WindowCounter> counters = new ConcurrentHashMap<>();
 
-    public AiRequestRateLimitFilter(ObjectProvider<StringRedisTemplate> redisTemplateProvider, Environment environment) {
+    public ApiRateLimitFilter(ObjectProvider<StringRedisTemplate> redisTemplateProvider, Environment environment) {
         this.clock = Clock.systemUTC();
         this.redisTemplate = redisTemplateProvider.getIfAvailable();
         this.environment = environment;
@@ -52,12 +67,13 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        if (!isProtectedAiRequest(request)) {
+        RateLimitPolicy policy = matchPolicy(request);
+        if (policy == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if (!allowRequest(resolveKey(request))) {
+        if (!allowRequest(resolveKey(request), policy)) {
             writeRateLimitResponse(request, response);
             return;
         }
@@ -65,48 +81,60 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isProtectedAiRequest(HttpServletRequest request) {
-        return "POST".equalsIgnoreCase(request.getMethod())
-                && AI_ASK_PATH.equals(request.getRequestURI());
+    private RateLimitPolicy matchPolicy(HttpServletRequest request) {
+        for (RateLimitPolicy policy : POLICIES) {
+            if (policy.method().equalsIgnoreCase(request.getMethod())
+                    && pathMatches(policy, request.getRequestURI())) {
+                return policy;
+            }
+        }
+        return null;
     }
 
-    private boolean allowRequest(String key) {
+    private boolean pathMatches(RateLimitPolicy policy, String requestUri) {
+        return policy.prefixMatch()
+                ? requestUri.startsWith(policy.path())
+                : policy.path().equals(requestUri);
+    }
+
+    private boolean allowRequest(String key, RateLimitPolicy policy) {
         if (redisTemplate == null) {
             if (isProductionProfile()) {
                 throw new IllegalStateException("Redis rate limiter is required in prod.");
             }
-            return allowRequestInMemory(key);
+            return allowRequestInMemory(key, policy);
         }
 
         if (isDevelopmentProfile()) {
-            return allowRequestInMemory(key);
+            return allowRequestInMemory(key, policy);
         }
 
         try {
-            String redisKey = redisKey(key);
+            String redisKey = redisKey(key, policy);
             Long count = redisTemplate.opsForValue().increment(redisKey);
             if (count != null && count == 1L) {
                 redisTemplate.expire(redisKey, Duration.ofSeconds(WINDOW_SECONDS + 5));
             }
-            return count != null && count <= MAX_REQUESTS_PER_WINDOW;
+            return count != null && count <= policy.maxRequests();
         } catch (DataAccessException exception) {
             if (isDevelopmentProfile()) {
-                return allowRequestInMemory(key);
+                return allowRequestInMemory(key, policy);
             }
             throw exception;
         }
     }
 
-    private boolean allowRequestInMemory(String key) {
+    private boolean allowRequestInMemory(String key, RateLimitPolicy policy) {
         long windowStart = Instant.now(clock).getEpochSecond() / WINDOW_SECONDS;
-        WindowCounter counter = counters.compute(key, (ignored, existing) -> {
+        counters.entrySet().removeIf(entry -> entry.getValue().windowStart < windowStart - 1);
+        WindowCounter counter = counters.compute(policy.bucket() + "|" + key, (ignored, existing) -> {
             if (existing == null || existing.windowStart != windowStart) {
                 return new WindowCounter(windowStart);
             }
             return existing;
         });
 
-        return counter.count.incrementAndGet() <= MAX_REQUESTS_PER_WINDOW;
+        return counter.count.incrementAndGet() <= policy.maxRequests();
     }
 
     private boolean isDevelopmentProfile() {
@@ -118,9 +146,9 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
         return Arrays.asList(environment.getActiveProfiles()).contains("prod");
     }
 
-    private String redisKey(String key) {
+    private String redisKey(String key, RateLimitPolicy policy) {
         long windowStart = Instant.now(clock).getEpochSecond() / WINDOW_SECONDS;
-        return "watchmyai:rate-limit:ai-ask:" + stableHash(key) + ":" + windowStart;
+        return "watchmyai:rate-limit:" + policy.bucket() + ":" + stableHash(key) + ":" + windowStart;
     }
 
     private String resolveKey(HttpServletRequest request) {
@@ -156,7 +184,7 @@ public class AiRequestRateLimitFilter extends OncePerRequestFilter {
 
         String requestId = String.valueOf(request.getAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE));
         response.getWriter().write("""
-                {"status":429,"error":"Too Many Requests","message":"Too many AI requests. Please try again shortly.","requestId":"%s","fieldErrors":[]}
+                {"status":429,"error":"Too Many Requests","message":"Too many requests. Please try again shortly.","requestId":"%s","fieldErrors":[]}
                 """.formatted(requestId));
     }
 

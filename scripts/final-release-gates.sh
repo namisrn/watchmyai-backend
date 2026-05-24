@@ -3,6 +3,7 @@ set -euo pipefail
 
 API_BASE_URL="${WATCHMYAI_API_BASE_URL:-https://api.watchmyai.app}"
 EXPECTED_APP_STORE_ENVIRONMENT="${EXPECTED_APP_STORE_ENVIRONMENT:-PRODUCTION}"
+WATCHMYAI_RELEASE_BEARER_TOKEN="${WATCHMYAI_RELEASE_BEARER_TOKEN:-}"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -53,10 +54,19 @@ json_field() {
 require_status GET /actuator/health 200 'application/vnd.spring-boot.actuator'
 require_status GET /actuator/health/readiness 200 'application/vnd.spring-boot.actuator'
 require_status GET /api/v1/auth/status 401 'application/json'
+require_status GET /api/v1/plans 200 'application/json'
 require_status GET /privacy 200 'text/html'
 require_status GET /terms 200 'text/html'
 
-app_store_status="$(curl -sS "$API_BASE_URL/api/v1/app-store/status")"
+if [[ -z "$WATCHMYAI_RELEASE_BEARER_TOKEN" ]]; then
+  fail 'WATCHMYAI_RELEASE_BEARER_TOKEN must be set for protected /api/v1/app-store/status release gate'
+fi
+
+app_store_status="$(
+  curl -sS \
+    -H "Authorization: Bearer $WATCHMYAI_RELEASE_BEARER_TOKEN" \
+    "$API_BASE_URL/api/v1/app-store/status"
+)"
 environment="$(json_field "$app_store_status" environment)"
 verification_enabled="$(json_field "$app_store_status" verificationEnabled)"
 credentials_configured="$(json_field "$app_store_status" credentialsConfigured)"

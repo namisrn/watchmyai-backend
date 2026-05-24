@@ -76,7 +76,7 @@ class AuthControllerTest {
     void appleAuthCreatesBackendSession() throws Exception {
         AppleUserIdentity appleIdentity = new AppleUserIdentity("subject-123", "user@example.com");
         AppUserEntity appUser = new AppUserEntity("subject-123", "apple-user", "user@example.com");
-        when(appleIdentityTokenVerifier.verify("identity-token"))
+        when(appleIdentityTokenVerifier.verify(eq("identity-token"), any()))
                 .thenReturn(appleIdentity);
         when(appUserService.findOrCreateAppleUser(appleIdentity, "apple-user"))
                 .thenReturn(appUser);
@@ -96,11 +96,30 @@ class AuthControllerTest {
                                   "authorizationCode": "auth-code",
                                   "appleUserId": "apple-user",
                                   "source": "ios",
-                                  "deviceName": "iPhone"
+                                  "deviceName": "iPhone",
+                                  "nonce": "dGVzdC1ub25jZS12YWx1ZQ"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sessionToken").value("session-token"))
                 .andExpect(jsonPath("$.appAccountToken").value("de305d54-75b4-431b-adb2-eb6b9e546014"));
+    }
+
+    @Test
+    void appleAuthRejectsRequestWithoutNonce() throws Exception {
+        // S2-1: replay-protection nonce must be required at DTO level — `@NotBlank` on the
+        // record field surfaces the error at validation time instead of after JWS parsing.
+        mockMvc.perform(post("/api/v1/auth/apple")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "identityToken": "identity-token",
+                                  "authorizationCode": "auth-code",
+                                  "appleUserId": "apple-user",
+                                  "source": "ios",
+                                  "deviceName": "iPhone"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 }
