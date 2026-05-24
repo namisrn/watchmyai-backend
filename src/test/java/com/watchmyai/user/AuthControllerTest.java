@@ -12,6 +12,8 @@ import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import org.springframework.http.MediaType;
@@ -37,6 +39,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AppSessionService appSessionService;
+
+    @MockitoBean
+    private AccountDeletionService accountDeletionService;
 
     @Test
     void statusReturnsAppleUser() throws Exception {
@@ -121,5 +126,48 @@ class AuthControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleteAccountRequiresMatchingAppleReauthentication() throws Exception {
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity("apple:subject-123"));
+        when(appleIdentityTokenVerifier.verify(eq("identity-token"), eq("fresh-raw-nonce-value-1234")))
+                .thenReturn(new AppleUserIdentity("subject-123", "user@example.com"));
+
+        mockMvc.perform(post("/api/v1/auth/delete-account")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "identityToken": "identity-token",
+                                  "authorizationCode": "auth-code",
+                                  "nonce": "fresh-raw-nonce-value-1234"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(true));
+
+        verify(accountDeletionService).deleteAccount("apple:subject-123", "auth-code");
+    }
+
+    @Test
+    void deleteAccountRejectsDifferentAppleIdentity() throws Exception {
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity("apple:subject-123"));
+        when(appleIdentityTokenVerifier.verify(eq("identity-token"), eq("fresh-raw-nonce-value-1234")))
+                .thenReturn(new AppleUserIdentity("another-subject", "other@example.com"));
+
+        mockMvc.perform(post("/api/v1/auth/delete-account")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "identityToken": "identity-token",
+                                  "authorizationCode": "auth-code",
+                                  "nonce": "fresh-raw-nonce-value-1234"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized());
+
+        verify(accountDeletionService, never()).deleteAccount(any(), any());
     }
 }

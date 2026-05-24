@@ -40,6 +40,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'com.apple.itunes.storekit:app-store-server-library:5.0.0'
+    implementation 'com.nimbusds:nimbus-jose-jwt:10.9'
     testRuntimeOnly 'com.h2database:h2'
 }
 

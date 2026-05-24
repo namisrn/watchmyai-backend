@@ -14,4 +14,6 @@ public interface AppStoreSubscriptionRepository extends JpaRepository<AppStoreSu
     Optional<AppStoreSubscriptionEntity> findFirstByAppAccountToken(UUID appAccountToken);
 
     List<AppStoreSubscriptionEntity> findByUserIdAndActiveTrue(String userId);
+
+    void deleteByUserId(String userId);
 }

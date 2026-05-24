@@ -29,6 +29,7 @@ class LegalPageControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("WatchMyAI Privacy Policy")))
+                .andExpect(content().string(containsString("delete your WatchMyAI account from Settings")))
                 .andExpect(content().string(containsString("support@watchmyai.app")));
     }
 

@@ -10,4 +10,6 @@ public interface AiRequestLogRepository extends JpaRepository<AiRequestLogEntity
             String userId,
             String clientRequestId
     );
+
+    void deleteByUserId(String userId);
 }

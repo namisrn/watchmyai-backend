@@ -16,6 +16,8 @@ public interface UserUsageRepository extends JpaRepository<UserUsageEntity, Long
             String periodYearMonth
     );
 
+    void deleteByUserId(String userId);
+
     /**
      * Atomically reserves one request slot. The conditional UPDATE only increments the
      * counters when every limit is still satisfied, so concurrent callers cannot both pass

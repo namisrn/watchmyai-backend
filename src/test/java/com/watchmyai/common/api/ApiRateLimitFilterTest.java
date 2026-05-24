@@ -68,6 +68,21 @@ class ApiRateLimitFilterTest {
     }
 
     @Test
+    void rateLimitsAccountDeletionReauthentication() throws Exception {
+        ApiRateLimitFilter filter = newFilter(null, "test");
+
+        for (int index = 0; index < 5; index++) {
+            MockHttpServletResponse response = doPost(filter, "/api/v1/auth/delete-account", "198.51.100.15");
+
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletResponse blocked = doPost(filter, "/api/v1/auth/delete-account", "198.51.100.15");
+
+        assertThat(blocked.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void rateLimitsAiPollingEndpointByPrefix() throws Exception {
         ApiRateLimitFilter filter = newFilter(null, "test");
 

@@ -12,4 +12,6 @@ public interface AppUserRepository extends JpaRepository<AppUserEntity, Long> {
     Optional<AppUserEntity> findByUserId(String userId);
 
     Optional<AppUserEntity> findByAppAccountToken(UUID appAccountToken);
+
+    void deleteByUserId(String userId);
 }
