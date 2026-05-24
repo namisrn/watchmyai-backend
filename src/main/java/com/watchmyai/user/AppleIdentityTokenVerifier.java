@@ -128,24 +128,13 @@ public class AppleIdentityTokenVerifier {
         }
     }
 
-    /**
-     * Validates the nonce binding. The client passes {@code request.nonce = SHA256(rawNonce)} to
-     * Apple, which echoes that value into the token's {@code nonce} claim. The backend receives the
-     * raw nonce, hashes it and compares. Tolerant transition: when the client sends no nonce or the
-     * token carries no nonce claim (older app versions), only a warning is logged.
-     */
     private void validateNonce(JsonNode claims, String rawNonce) {
         String tokenNonce = stringClaim(claims, "nonce");
         boolean clientSentNonce = rawNonce != null && !rawNonce.isBlank();
         boolean tokenHasNonce = tokenNonce != null && !tokenNonce.isBlank();
 
         if (!clientSentNonce || !tokenHasNonce) {
-            log.warn(
-                    "Apple identity token verified without nonce binding clientSentNonce={} tokenHasNonce={}",
-                    clientSentNonce,
-                    tokenHasNonce
-            );
-            return;
+            throw new AuthenticationRequiredException("Apple identity token nonce is required.");
         }
 
         if (!MessageDigest.isEqual(

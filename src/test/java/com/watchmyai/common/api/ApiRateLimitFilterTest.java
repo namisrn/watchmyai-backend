@@ -68,6 +68,21 @@ class ApiRateLimitFilterTest {
     }
 
     @Test
+    void rateLimitsAiPollingEndpointByPrefix() throws Exception {
+        ApiRateLimitFilter filter = newFilter(null, "test");
+
+        for (int index = 0; index < 120; index++) {
+            MockHttpServletResponse response = doGet(filter, "/api/v1/ai/ask/request-" + index, "198.51.100.14");
+
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletResponse blocked = doGet(filter, "/api/v1/ai/ask/request-final", "198.51.100.14");
+
+        assertThat(blocked.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void doesNotRateLimitUnlistedEndpoints() throws Exception {
         ApiRateLimitFilter filter = newFilter(null, "test");
 
@@ -111,6 +126,19 @@ class ApiRateLimitFilterTest {
             String remoteAddress
     ) throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
+        request.setRemoteAddr(remoteAddress);
+        request.setAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE, "test-request-id");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        return response;
+    }
+
+    private MockHttpServletResponse doGet(
+            ApiRateLimitFilter filter,
+            String path,
+            String remoteAddress
+    ) throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
         request.setRemoteAddr(remoteAddress);
         request.setAttribute(RequestCorrelation.REQUEST_ID_ATTRIBUTE, "test-request-id");
         MockHttpServletResponse response = new MockHttpServletResponse();

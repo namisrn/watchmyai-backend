@@ -37,9 +37,9 @@ public class QuotaDebugController {
     }
 
     @PostMapping("/reset")
-    public QuotaCheckResult resetDebugUsage() {
+    public QuotaStatusResponse resetDebugUsage() {
         quotaService.resetUsage();
-        return quotaService.checkQuota(userPlanService.getCurrentPlan());
+        return QuotaStatusResponse.from(quotaService.checkQuota(userPlanService.getCurrentPlan()));
     }
 
     @PostMapping("/cost/high")

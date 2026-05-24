@@ -38,14 +38,15 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
 
     private static final int WINDOW_SECONDS = 60;
 
-    private record RateLimitPolicy(String method, String path, String bucket, int maxRequests) {
+    private record RateLimitPolicy(String method, String path, boolean prefixMatch, String bucket, int maxRequests) {
     }
 
     private static final List<RateLimitPolicy> POLICIES = List.of(
-            new RateLimitPolicy("POST", "/api/v1/ai/ask", "ai-ask", 30),
-            new RateLimitPolicy("POST", "/api/v1/auth/apple", "auth-apple", 10),
-            new RateLimitPolicy("POST", "/api/v1/subscription/sync", "subscription-sync", 20),
-            new RateLimitPolicy("POST", "/api/v1/app-store/notifications", "app-store-notifications", 120)
+            new RateLimitPolicy("POST", "/api/v1/ai/ask", false, "ai-ask", 30),
+            new RateLimitPolicy("GET", "/api/v1/ai/ask/", true, "ai-ask-poll", 120),
+            new RateLimitPolicy("POST", "/api/v1/auth/apple", false, "auth-apple", 10),
+            new RateLimitPolicy("POST", "/api/v1/subscription/sync", false, "subscription-sync", 20),
+            new RateLimitPolicy("POST", "/api/v1/app-store/notifications", false, "app-store-notifications", 120)
     );
 
     private final Clock clock;
@@ -83,11 +84,17 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private RateLimitPolicy matchPolicy(HttpServletRequest request) {
         for (RateLimitPolicy policy : POLICIES) {
             if (policy.method().equalsIgnoreCase(request.getMethod())
-                    && policy.path().equals(request.getRequestURI())) {
+                    && pathMatches(policy, request.getRequestURI())) {
                 return policy;
             }
         }
         return null;
+    }
+
+    private boolean pathMatches(RateLimitPolicy policy, String requestUri) {
+        return policy.prefixMatch()
+                ? requestUri.startsWith(policy.path())
+                : policy.path().equals(requestUri);
     }
 
     private boolean allowRequest(String key, RateLimitPolicy policy) {

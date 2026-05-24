@@ -1,5 +1,6 @@
 package com.watchmyai.quota;
 
+import com.watchmyai.config.AiPricingProperties;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -9,7 +10,12 @@ import java.math.RoundingMode;
 public class CostEstimatorService {
 
     private static final BigDecimal TOKENS_PER_MILLION = new BigDecimal("1000000");
-    private static final BigDecimal USD_TO_EUR = new BigDecimal("0.92");
+
+    private final AiPricingProperties pricingProperties;
+
+    public CostEstimatorService(AiPricingProperties pricingProperties) {
+        this.pricingProperties = pricingProperties;
+    }
 
     public BigDecimal estimateCostEur(String model, int inputTokens, int outputTokens) {
         BigDecimal inputCostPerMillionUsd = inputCostPerMillionUsd(model);
@@ -24,7 +30,7 @@ public class CostEstimatorService {
 
         return inputCostUsd
                 .add(outputCostUsd)
-                .multiply(USD_TO_EUR)
+                .multiply(pricingProperties.usdToEur())
                 .setScale(6, RoundingMode.HALF_UP);
     }
 
@@ -45,22 +51,10 @@ public class CostEstimatorService {
     }
 
     private BigDecimal inputCostPerMillionUsd(String model) {
-        return switch (model) {
-            case "gpt-5.4-nano" -> new BigDecimal("0.20");
-            case "gpt-5.4-mini" -> new BigDecimal("0.75");
-            case "gpt-5.4" -> new BigDecimal("2.50");
-            case "gpt-5.5" -> new BigDecimal("5.00");
-            default -> new BigDecimal("0.75");
-        };
+        return pricingProperties.priceFor(model).inputUsdPerMillion();
     }
 
     private BigDecimal outputCostPerMillionUsd(String model) {
-        return switch (model) {
-            case "gpt-5.4-nano" -> new BigDecimal("1.25");
-            case "gpt-5.4-mini" -> new BigDecimal("4.50");
-            case "gpt-5.4" -> new BigDecimal("15.00");
-            case "gpt-5.5" -> new BigDecimal("30.00");
-            default -> new BigDecimal("4.50");
-        };
+        return pricingProperties.priceFor(model).outputUsdPerMillion();
     }
 }

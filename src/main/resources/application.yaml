@@ -27,3 +27,52 @@ watchmyai:
     ttl-days: ${WATCHMYAI_SESSION_TTL_DAYS:30}
   legal:
     contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
+  plan-catalog:
+    plans:
+      FREE:
+        lifetime-request-limit: 0
+        daily-request-limit: 5
+        monthly-request-limit: 20
+        monthly-premium-request-limit: 0
+        max-output-tokens: 180
+        monthly-cost-cap-eur: 0.20
+      PLUS:
+        lifetime-request-limit: 0
+        daily-request-limit: 100
+        monthly-request-limit: 1000
+        monthly-premium-request-limit: 0
+        max-output-tokens: 300
+        monthly-cost-cap-eur: 2.00
+      PRO:
+        lifetime-request-limit: 0
+        daily-request-limit: 200
+        monthly-request-limit: 1500
+        monthly-premium-request-limit: 100
+        max-output-tokens: 400
+        monthly-cost-cap-eur: 4.50
+  ai:
+    model-policy:
+      default-model: gpt-5.4-mini
+      pro-premium-model: gpt-5.4
+      mode-models:
+        translate: gpt-5.4-nano
+        rewrite: gpt-5.4-nano
+        explain: gpt-5.4-mini
+        short_answer: gpt-5.4-mini
+        premium_reasoning: gpt-5.4-mini
+    pricing:
+      usd-to-eur: ${WATCHMYAI_USD_TO_EUR:0.92}
+      default-model: gpt-5.4-mini
+      models:
+        gpt-5.4-nano:
+          input-usd-per-million: 0.20
+          output-usd-per-million: 1.25
+        gpt-5.4-mini:
+          input-usd-per-million: 0.75
+          output-usd-per-million: 4.50
+        gpt-5.4:
+          input-usd-per-million: 2.50
+          output-usd-per-million: 15.00
+        gpt-5.5:
+          input-usd-per-million: 5.00
+          output-usd-per-million: 30.00
