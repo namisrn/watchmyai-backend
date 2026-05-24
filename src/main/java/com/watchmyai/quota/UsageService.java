@@ -165,6 +165,18 @@ public class UsageService {
         usage.simulateHighCost();
     }
 
+    /**
+     * Gives a downgraded subscription its new plan allowance in the current period.
+     * Without clearing cost as well as counters, paid-plan usage above Free's smaller
+     * cost cap would still reject the first Free request.
+     */
+    @Transactional
+    public void resetUsageForPlanDowngrade(String userId, PlanType newPlanType) {
+        UserUsageEntity usage = getOrCreateCurrentUsage(userId, newPlanType);
+        usage.resetForPlanDowngrade(newPlanType);
+        userUsageRepository.save(usage);
+    }
+
     private UserUsageEntity getOrCreateCurrentUsage(String userId, PlanType planType) {
         String periodYearMonth = getCurrentPeriodYearMonth();
         String periodDay = getCurrentPeriodDay();

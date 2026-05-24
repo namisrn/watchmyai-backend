@@ -156,4 +156,26 @@ class UsageServiceTest {
                 eq(new BigDecimal("0.005000")), any(Instant.class)
         );
     }
+
+    @Test
+    void planDowngradeStartsFreeWithFreshPeriodAndCostBudget() {
+        UserUsageEntity usage = new UserUsageEntity(TEST_USER_ID, PlanType.PLUS, CURRENT_PERIOD, "2026-04-15");
+        usage.incrementLifetimeRequests();
+        usage.incrementDailyRequests();
+        usage.incrementMonthlyRequests();
+        usage.incrementPremiumRequests();
+        usage.addEstimatedMonthlyCostEur(new BigDecimal("1.500000"));
+        when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
+                .thenReturn(Optional.of(usage));
+
+        usageService.resetUsageForPlanDowngrade(TEST_USER_ID, PlanType.FREE);
+
+        assertThat(usage.getPlanType()).isEqualTo(PlanType.FREE);
+        assertThat(usage.getUsedLifetimeRequests()).isEqualTo(1);
+        assertThat(usage.getUsedDailyRequests()).isZero();
+        assertThat(usage.getUsedMonthlyRequests()).isZero();
+        assertThat(usage.getUsedPremiumRequests()).isZero();
+        assertThat(usage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(userUsageRepository).save(usage);
+    }
 }

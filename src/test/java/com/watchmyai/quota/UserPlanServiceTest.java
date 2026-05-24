@@ -51,6 +51,16 @@ class UserPlanServiceTest {
     }
 
     @Test
+    void getPlanForExplicitUserReturnsStoredPlanForSubscriptionRecalculation() {
+        when(userPlanRepository.findByUserId(USER_ID))
+                .thenReturn(Optional.of(new UserPlanEntity(USER_ID, PlanType.PLUS)));
+
+        PlanType planType = userPlanService.getPlanForUser(USER_ID);
+
+        assertThat(planType).isEqualTo(PlanType.PLUS);
+    }
+
+    @Test
     void setCurrentPlanCreatesUserPlanWhenMissing() {
         when(userPlanRepository.findByUserId(USER_ID))
                 .thenReturn(Optional.empty());

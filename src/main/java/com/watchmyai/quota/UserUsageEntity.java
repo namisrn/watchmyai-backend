@@ -185,4 +185,16 @@ public class UserUsageEntity {
         this.periodDay = periodDay;
         this.usedDailyRequests = 0;
     }
+
+    /**
+     * Starts the current accounting period on the downgraded plan with that plan's own
+     * daily, monthly and cost allowance. Lifetime usage remains historical.
+     */
+    public void resetForPlanDowngrade(PlanType newPlanType) {
+        this.planType = newPlanType;
+        this.usedDailyRequests = 0;
+        this.usedMonthlyRequests = 0;
+        this.usedPremiumRequests = 0;
+        this.estimatedMonthlyCostEur = BigDecimal.ZERO;
+    }
 }

@@ -3,7 +3,10 @@ package com.watchmyai.subscription;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.Status;
 import com.watchmyai.quota.PlanType;
+import com.watchmyai.quota.UsageService;
 import com.watchmyai.quota.UserPlanService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +27,13 @@ import java.util.function.Consumer;
 @Service
 public class SubscriptionTransactionService {
 
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionTransactionService.class);
+
     private final AppStoreSubscriptionRepository subscriptionRepository;
     private final SubscriptionUpsertService subscriptionUpsertService;
     private final SubscriptionProductCatalog productCatalog;
     private final UserPlanService userPlanService;
+    private final UsageService usageService;
     private final Clock clock;
 
     public SubscriptionTransactionService(
@@ -35,12 +41,14 @@ public class SubscriptionTransactionService {
             SubscriptionUpsertService subscriptionUpsertService,
             SubscriptionProductCatalog productCatalog,
             UserPlanService userPlanService,
+            UsageService usageService,
             Clock clock
     ) {
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionUpsertService = subscriptionUpsertService;
         this.productCatalog = productCatalog;
         this.userPlanService = userPlanService;
+        this.usageService = usageService;
         this.clock = clock;
     }
 
@@ -116,15 +124,17 @@ public class SubscriptionTransactionService {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown subscription product."));
 
         Instant now = Instant.now(clock);
+        Instant expiresAt = toInstant(request.expirationDateMilliseconds());
+        boolean active = expiresAt == null || expiresAt.isAfter(now);
         SubscriptionUpdatePayload update = new SubscriptionUpdatePayload(
                 request.transactionId(),
                 request.productId(),
                 planType,
                 request.environment(),
                 parseAppAccountToken(request.appAccountToken()),
-                "UNVERIFIED_ACTIVE",
-                true,
-                null,
+                active ? "UNVERIFIED_ACTIVE" : "UNVERIFIED_EXPIRED",
+                active,
+                expiresAt,
                 null,
                 null,
                 false,
@@ -170,7 +180,22 @@ public class SubscriptionTransactionService {
                 .max(Comparator.comparing(Enum::ordinal))
                 .orElse(PlanType.FREE);
 
+        PlanType previousPlan = userPlanService.getPlanForUser(userId);
         userPlanService.setCurrentPlanForUser(userId, activePlan);
+
+        // Plan-downgrade quota reset: when the user drops to a lower plan (e.g. Plus → Free
+        // at end-of-billing-period, or Pro → Plus, or any → Free after revoke), their
+        // prior usage on the higher plan would otherwise exceed the new lower monthly limit
+        // and immediately lock them out with "Limit reached" on the very next request.
+        // Reset the current plan-budget counters and accumulated period cost so the lower
+        // plan gets its allowance. Lifetime usage remains a historical ledger value.
+        if (activePlan.ordinal() < previousPlan.ordinal()) {
+            log.info(
+                    "Plan downgrade userId={} {} -> {} — resetting current period's usage counters",
+                    userId, previousPlan, activePlan
+            );
+            usageService.resetUsageForPlanDowngrade(userId, activePlan);
+        }
         return activePlan;
     }
 
