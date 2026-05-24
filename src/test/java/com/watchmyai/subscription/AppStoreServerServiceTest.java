@@ -27,7 +27,25 @@ class AppStoreServerServiceTest {
     }
 
     @Test
-    void createsVerifierWithClasspathAppleRootCertificates() {
+    void productionEnvironmentReportsReleaseReadinessWithConfiguredVerifier() {
+        AppStoreServerService service = new AppStoreServerService(new AppStoreServerProperties(
+                "com.sasanrafatnami.WatchMyAI",
+                123456789L,
+                "issuer",
+                "key",
+                "private-key",
+                "PRODUCTION",
+                true
+        ));
+
+        AppStoreServerStatusResponse status = service.status();
+
+        assertThat(status.credentialsConfigured()).isTrue();
+        assertThat(status.productionReady()).isTrue();
+    }
+
+    @Test
+    void sandboxVerifierDoesNotReportProductionReleaseReadiness() {
         AppStoreServerService service = new AppStoreServerService(new AppStoreServerProperties(
                 "com.sasanrafatnami.WatchMyAI",
                 123456789L,
@@ -41,7 +59,7 @@ class AppStoreServerServiceTest {
         AppStoreServerStatusResponse status = service.status();
 
         assertThat(status.credentialsConfigured()).isTrue();
-        assertThat(status.productionReady()).isTrue();
+        assertThat(status.productionReady()).isFalse();
     }
 
     @Test

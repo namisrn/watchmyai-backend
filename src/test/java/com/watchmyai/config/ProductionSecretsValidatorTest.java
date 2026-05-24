@@ -31,7 +31,7 @@ class ProductionSecretsValidatorTest {
                         "issuer",
                         "key",
                         "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
-                        "SANDBOX",
+                        "PRODUCTION",
                         true
                 ),
                 new RedisProperties("redis://redis:6379"),
@@ -73,7 +73,7 @@ class ProductionSecretsValidatorTest {
                         "APP_STORE_BUNDLE_ID must be com.sasanrafatnami.WatchMyAI.",
                         "APP_STORE_APP_APPLE_ID must be set to the numeric App Store Connect app Apple ID.",
                         "APP_STORE_ISSUER_ID, APP_STORE_KEY_ID, and APP_STORE_PRIVATE_KEY must be set.",
-                        "APP_STORE_ENVIRONMENT must be SANDBOX for TestFlight or PRODUCTION for release.",
+                        "APP_STORE_ENVIRONMENT must be PRODUCTION in prod; the production verifier also accepts Sandbox/TestFlight transactions through its fallback.",
                         "APP_STORE_VERIFICATION_ENABLED must be true in prod.",
                         "REDIS_URL must be set in prod."
                 );
@@ -142,6 +142,37 @@ class ProductionSecretsValidatorTest {
 
         assertThat(validator.validate())
                 .contains("SPRING_PROFILES_ACTIVE must not include dev or test in prod.");
+    }
+
+    @Test
+    void rejectsSandboxAsPrimaryVerifierInProduction() {
+        ProductionSecretsValidator validator = new ProductionSecretsValidator(
+                new OpenAiProperties("sk-live", false, "https://api.openai.com/v1/responses"),
+                new AppleAuthProperties(
+                        "https://appleid.apple.com",
+                        "https://appleid.apple.com/auth/keys",
+                        "com.sasanrafatnami.WatchMyAI"
+                ),
+                new AppleSignInServerProperties(
+                        "TEAMID1234",
+                        "signin-key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----"
+                ),
+                new AppStoreServerProperties(
+                        "com.sasanrafatnami.WatchMyAI",
+                        123456789L,
+                        "issuer",
+                        "key",
+                        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+                        "SANDBOX",
+                        true
+                ),
+                new RedisProperties("redis://redis:6379"),
+                environment("prod")
+        );
+
+        assertThat(validator.validate())
+                .contains("APP_STORE_ENVIRONMENT must be PRODUCTION in prod; the production verifier also accepts Sandbox/TestFlight transactions through its fallback.");
     }
 
     private Environment environment(String... activeProfiles) {

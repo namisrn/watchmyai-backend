@@ -26,7 +26,7 @@
 -   `APP_STORE_ISSUER_ID`
 -   `APP_STORE_KEY_ID`
 -   `APP_STORE_PRIVATE_KEY`
--   `APP_STORE_ENVIRONMENT=SANDBOX` for TestFlight, `PRODUCTION` for release
+-   `APP_STORE_ENVIRONMENT=PRODUCTION` (TestFlight/Sandbox transactions are verified by the fallback verifier)
 -   `APP_STORE_VERIFICATION_ENABLED=true` after App Store Server credentials are set
 -   `WATCHMYAI_USD_TO_EUR` reviewed before release and whenever OpenAI billing currency assumptions change
 
@@ -39,7 +39,7 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   `APP_STORE_BUNDLE_ID` is `com.sasanrafatnami.WatchMyAI`.
 -   `APP_STORE_APP_APPLE_ID` is a positive numeric App Store Connect app ID.
 -   `APP_STORE_ISSUER_ID`, `APP_STORE_KEY_ID`, and the full `.p8` `APP_STORE_PRIVATE_KEY` are present.
--   `APP_STORE_ENVIRONMENT` is `SANDBOX` for TestFlight or `PRODUCTION` for release.
+-   `APP_STORE_ENVIRONMENT=PRODUCTION`; the live backend must not use Sandbox as its primary verifier.
 -   `APP_STORE_VERIFICATION_ENABLED=true`.
 -   Every configured AI model has matching pricing.
 
@@ -54,8 +54,8 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
     -   set `APP_STORE_APP_APPLE_ID`
     -   keep `APP_STORE_BUNDLE_ID=com.sasanrafatnami.WatchMyAI`
 -   Verification:
-    -   Sandbox/TestFlight: `APP_STORE_ENVIRONMENT=SANDBOX`
-    -   Release: `APP_STORE_ENVIRONMENT=PRODUCTION`
+    -   Production backend: `APP_STORE_ENVIRONMENT=PRODUCTION`
+    -   TestFlight receipts still report `SANDBOX` and are accepted through the validated Sandbox fallback
     -   enable `APP_STORE_VERIFICATION_ENABLED=true`
     -   authenticated `/api/v1/app-store/status` must report `productionReady=true`
 
@@ -72,8 +72,8 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
     -   purchase/subscription status
     -   AI prompts and generated answers
 -   Add Terms of Use and Privacy Policy URLs. The frontend currently points to:
-    -   `https://watchmyai.app/privacy`
-    -   `https://watchmyai.app/terms`
+    -   `https://api.watchmyai.app/privacy`
+    -   `https://api.watchmyai.app/terms`
 
 ## Monitoring
 
@@ -102,7 +102,7 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   Run a production backup and restore check before the first paid launch.
 -   Add account deletion/export UI before submitting privacy metadata that promises self-service deletion.
 -   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
--   Before App Store release, switch `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
+-   Before App Store release, verify `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
 
 ## Release Gates
 

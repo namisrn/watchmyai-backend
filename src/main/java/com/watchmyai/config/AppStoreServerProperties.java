@@ -69,4 +69,10 @@ public class AppStoreServerProperties {
     public boolean readyForProductionVerification() {
         return verificationEnabled && hasServerApiCredentials() && appAppleId != null && appAppleId > 0;
     }
+
+    public boolean readyForProductionRelease() {
+        return readyForProductionVerification()
+                && environment != null
+                && environment.trim().equalsIgnoreCase("PRODUCTION");
+    }
 }

@@ -55,6 +55,10 @@ management:
 watchmyai:
   debug:
     endpoints-enabled: false
+  app-store:
+    # A production deployment uses Apple's production verifier first; the service
+    # still accepts TestFlight/Sandbox transactions using its verified fallback.
+    environment: ${APP_STORE_ENVIRONMENT:PRODUCTION}
   # watchmyai.auth.apple.audience is intentionally NOT overridden here: it inherits the
   # safe default from application.yaml (the app's own bundle IDs). ProductionSecretsValidator
   # still fails startup if APPLE_CLIENT_ID resolves to something without the expected ID.
