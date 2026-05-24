@@ -4,6 +4,7 @@ import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.watchmyai.user.AppUserService;
 import com.watchmyai.user.UserContextService;
+import com.watchmyai.user.UserIdentity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -41,9 +42,11 @@ public class SubscriptionEntitlementService {
             SubscriptionSyncRequest request,
             AppStoreServerService.VerificationResult verificationResult
     ) {
-        String userId = userContextService.getCurrentUser().userId();
+        UserIdentity currentUser = userContextService.getCurrentUser();
+        String userId = currentUser.userId();
 
         if (verificationResult.verified()) {
+            validateClientEntitlementOwner(currentUser, verificationResult.payload());
             return transactionService.processTransaction(
                     userId,
                     verificationResult.payload(),
@@ -146,6 +149,44 @@ public class SubscriptionEntitlementService {
 
     private String notificationSubtype(ResponseBodyV2DecodedPayload payload) {
         return transactionService.stringValue(payload.getRawSubtype(), payload.getSubtype());
+    }
+
+    private void validateClientEntitlementOwner(UserIdentity currentUser, JWSTransactionDecodedPayload transaction) {
+        Optional<AppStoreSubscriptionEntity> existing = transactionService
+                .findByOriginalTransactionId(transaction.getOriginalTransactionId());
+
+        if (existing.isPresent() && !existing.get().getUserId().equals(currentUser.userId())) {
+            throw new IllegalArgumentException("App Store transaction is associated with a different account.");
+        }
+
+        UUID transactionToken = transaction.getAppAccountToken();
+        UUID authenticatedUserToken = parseAppAccountToken(currentUser.appAccountToken());
+        if (transactionToken != null && transactionToken.equals(authenticatedUserToken)) {
+            return;
+        }
+
+        // Existing tokenless transactions may have been purchased before appAccountToken
+        // was introduced. They remain restorable only to their already recorded owner.
+        if (transactionToken == null
+                && existing.isPresent()
+                && existing.get().getUserId().equals(currentUser.userId())
+                && existing.get().getAppAccountToken() == null) {
+            return;
+        }
+
+        throw new IllegalArgumentException("App Store transaction is not associated with the authenticated account.");
+    }
+
+    private UUID parseAppAccountToken(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException invalidToken) {
+            return null;
+        }
     }
 
     private boolean isDevelopmentProfile() {

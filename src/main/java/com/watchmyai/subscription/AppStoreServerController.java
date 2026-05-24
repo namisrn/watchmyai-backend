@@ -63,21 +63,41 @@ public class AppStoreServerController {
         }
 
         String notificationUUID = payload.getNotificationUUID();
-        if (notificationUUID != null && !notificationUUID.isBlank() && !markAsSeen(notificationUUID)) {
-            notificationDuplicateCounter.increment();
-            log.info("Duplicate App Store notification ignored notificationUUID={}", notificationUUID);
-            return new AppStoreNotificationResponse(true, "duplicate");
+        boolean reservationMade = false;
+        if (notificationUUID != null && !notificationUUID.isBlank()) {
+            reservationMade = markAsSeen(notificationUUID);
+            if (!reservationMade) {
+                notificationDuplicateCounter.increment();
+                log.info("Duplicate App Store notification ignored notificationUUID={}", notificationUUID);
+                return new AppStoreNotificationResponse(true, "duplicate");
+            }
         }
 
-        var verificationResult = appStoreServerService.verifyClientTransactionPayload(
-                payload.getData().getSignedTransactionInfo()
-        );
-        return subscriptionEntitlementService.applyNotification(payload, verificationResult.payload());
+        try {
+            var verificationResult = appStoreServerService.verifyClientTransactionPayload(
+                    payload.getData().getSignedTransactionInfo()
+            );
+            return subscriptionEntitlementService.applyNotification(payload, verificationResult.payload());
+        } catch (RuntimeException processingFailure) {
+            if (reservationMade) {
+                clearSeenReservation(notificationUUID);
+            }
+            throw processingFailure;
+        }
     }
 
     private boolean markAsSeen(String notificationUUID) {
         String key = NOTIFICATION_KEY_PREFIX + notificationUUID;
         Boolean isNew = redisTemplate.opsForValue().setIfAbsent(key, "1", NOTIFICATION_TTL);
         return Boolean.TRUE.equals(isNew);
+    }
+
+    private void clearSeenReservation(String notificationUUID) {
+        try {
+            redisTemplate.delete(NOTIFICATION_KEY_PREFIX + notificationUUID);
+            log.warn("Released App Store notification reservation after processing failure notificationUUID={}", notificationUUID);
+        } catch (RuntimeException cleanupFailure) {
+            log.error("Unable to release App Store notification reservation notificationUUID={}", notificationUUID, cleanupFailure);
+        }
     }
 }
