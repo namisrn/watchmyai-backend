@@ -201,7 +201,7 @@ public class AiService {
             }
             String message = exception instanceof OpenAiClientException
                     ? exception.getMessage()
-                    : "Die Anfrage konnte nicht verarbeitet werden.";
+                    : AiUserFacingMessages.PROCESSING_FAILED;
             log.warn("AI job failed userId={} logId={} clientRequestId={} model={}", userId, logId, request.clientRequestId(), model, exception);
             AskAIResponse failed = new AskAIResponse(
                     AskAIResponse.STATUS_FAILED,
@@ -222,7 +222,7 @@ public class AiService {
     private AskAIResponse acceptedResponse(PlanType plan) {
         return new AskAIResponse(
                 AskAIResponse.STATUS_PROCESSING,
-                "Deine Anfrage wird verarbeitet.",
+                AiUserFacingMessages.PROCESSING,
                 "none",
                 plan,
                 false,
@@ -237,7 +237,7 @@ public class AiService {
     private AskAIResponse blockedResponse(PlanType plan, QuotaCheckResult quota) {
         return new AskAIResponse(
                 AskAIResponse.STATUS_BLOCKED,
-                "Your current limit has been reached. Please upgrade or try again later.",
+                AiUserFacingMessages.LIMIT_REACHED,
                 "none",
                 plan,
                 false,

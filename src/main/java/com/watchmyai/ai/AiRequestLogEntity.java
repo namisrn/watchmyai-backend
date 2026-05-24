@@ -181,7 +181,7 @@ public class AiRequestLogEntity {
     public AskAIResponse toInProgressResponse() {
         return new AskAIResponse(
                 AskAIResponse.STATUS_PROCESSING,
-                "Deine Anfrage wird verarbeitet.",
+                AiUserFacingMessages.PROCESSING,
                 "none",
                 planType,
                 false,

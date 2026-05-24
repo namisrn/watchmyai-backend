@@ -62,10 +62,10 @@ public class OpenAiClient {
     public OpenAiResponse ask(String model, String systemPrompt, String userPrompt, int maxOutputTokens) {
         if (!openAiProperties.hasApiKey()) {
             if (!openAiProperties.mockEnabled()) {
-                throw new OpenAiClientException("OPENAI_API_KEY fehlt im Backend.", 503);
+                throw new OpenAiClientException(AiUserFacingMessages.MISSING_API_KEY, 503);
             }
 
-            String mockAnswer = "Mock-Antwort über OpenAiClient. Modell: " + model + ". Frage: " + userPrompt;
+            String mockAnswer = AiUserFacingMessages.MOCK_ANSWER_PREFIX + " Model: " + model + ". Question: " + userPrompt;
             return new OpenAiResponse(
                     mockAnswer,
                     estimateTokens(systemPrompt) + estimateTokens(userPrompt),
@@ -86,7 +86,7 @@ public class OpenAiClient {
         } catch (CallNotPermittedException exception) {
             // The circuit breaker is open after repeated provider failures — fail fast instead
             // of tying up a worker thread on a call that is very likely to fail.
-            throw new OpenAiClientException("OpenAI ist vorübergehend nicht erreichbar.", 503);
+            throw new OpenAiClientException(AiUserFacingMessages.AI_PROVIDER_UNAVAILABLE, 503);
         }
     }
 
