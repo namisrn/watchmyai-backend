@@ -22,7 +22,12 @@ public record AppleAuthRequest(
         @Size(max = 255)
         String deviceName,
 
-        @Size(max = 255)
+        // Apple's nonce is a Base64URL SHA-256 hash of the client's raw nonce — at least 22
+        // chars (16 random bytes → 22 base64-url chars without padding). Required for replay
+        // protection; `AppleIdentityTokenVerifier.validateNonce` rejects blank values anyway,
+        // but `@NotBlank` surfaces the error at DTO validation instead of after JWS parsing.
+        @NotBlank
+        @Size(min = 22, max = 255)
         String nonce
 ) {
 }
