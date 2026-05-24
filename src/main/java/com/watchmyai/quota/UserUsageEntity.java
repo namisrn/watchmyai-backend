@@ -185,4 +185,15 @@ public class UserUsageEntity {
         this.periodDay = periodDay;
         this.usedDailyRequests = 0;
     }
+
+    /**
+     * Plan-downgrade reset: zero the period counters (daily + monthly + premium) so the
+     * user gets a fresh budget on the new lower plan, but preserve the lifetime counter
+     * and accumulated EUR cost (historical / plan-independent fields).
+     */
+    public void resetForPlanDowngrade() {
+        this.usedDailyRequests = 0;
+        this.usedMonthlyRequests = 0;
+        this.usedPremiumRequests = 0;
+    }
 }

@@ -67,7 +67,14 @@ public class UsageService {
     }
 
     private UserUsageEntity getOrCreateCurrentUsage(PlanType planType) {
-        String userId = getCurrentUserId();
+        return getOrCreateCurrentUsageForUser(getCurrentUserId(), planType);
+    }
+
+    /**
+     * userId-aware variant of {@link #getOrCreateCurrentUsage(PlanType)} for code paths
+     * that run outside an HTTP request scope (e.g. App Store Server Notification handlers).
+     */
+    private UserUsageEntity getOrCreateCurrentUsageForUser(String userId, PlanType planType) {
         String periodYearMonth = getCurrentPeriodYearMonth();
         String periodDay = getCurrentPeriodDay();
 
@@ -101,6 +108,20 @@ public class UsageService {
 
     private String getCurrentPeriodDay() {
         return LocalDate.now(clock).toString();
+    }
+
+    /**
+     * Resets the current period's daily / monthly / premium counters for the given user.
+     * Called after a subscription downgrade (e.g. Plus → Free at end-of-billing-period)
+     * so the user's prior usage on the higher plan doesn't immediately exceed the new
+     * lower limit and lock them out. The lifetime counter and accumulated EUR cost are
+     * preserved — those are historical, plan-independent ledger entries.
+     */
+    @Transactional
+    public void resetUsageForPlanDowngrade(String userId, PlanType newPlanType) {
+        UserUsageEntity usage = getOrCreateCurrentUsageForUser(userId, newPlanType);
+        usage.resetForPlanDowngrade();
+        userUsageRepository.save(usage);
     }
 
     private UsageSnapshot toSnapshot(UserUsageEntity usage) {

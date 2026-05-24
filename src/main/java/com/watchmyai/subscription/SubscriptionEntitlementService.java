@@ -4,9 +4,12 @@ import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.apple.itunes.storekit.model.Status;
 import com.watchmyai.quota.PlanType;
+import com.watchmyai.quota.UsageService;
 import com.watchmyai.quota.UserPlanService;
 import com.watchmyai.user.AppUserService;
 import com.watchmyai.user.UserContextService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +24,12 @@ import java.util.UUID;
 @Service
 public class SubscriptionEntitlementService {
 
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionEntitlementService.class);
+
     private final AppStoreSubscriptionRepository subscriptionRepository;
     private final SubscriptionProductCatalog productCatalog;
     private final UserPlanService userPlanService;
+    private final UsageService usageService;
     private final UserContextService userContextService;
     private final AppUserService appUserService;
     private final Environment environment;
@@ -33,6 +39,7 @@ public class SubscriptionEntitlementService {
             AppStoreSubscriptionRepository subscriptionRepository,
             SubscriptionProductCatalog productCatalog,
             UserPlanService userPlanService,
+            UsageService usageService,
             UserContextService userContextService,
             AppUserService appUserService,
             Environment environment,
@@ -41,6 +48,7 @@ public class SubscriptionEntitlementService {
         this.subscriptionRepository = subscriptionRepository;
         this.productCatalog = productCatalog;
         this.userPlanService = userPlanService;
+        this.usageService = usageService;
         this.userContextService = userContextService;
         this.appUserService = appUserService;
         this.environment = environment;
@@ -231,7 +239,21 @@ public class SubscriptionEntitlementService {
                 .max(Comparator.comparing(Enum::ordinal))
                 .orElse(PlanType.FREE);
 
+        PlanType previousPlan = userPlanService.getPlanForUser(userId);
         userPlanService.setCurrentPlanForUser(userId, activePlan);
+
+        // Plan-downgrade quota reset: when the user drops to a lower plan (e.g. Plus → Free
+        // at end-of-billing-period), their prior usage on the higher plan would otherwise
+        // exceed the new lower monthly limit and immediately block them with "Limit reached"
+        // on the very next request. Reset the current period's counters so the new plan
+        // starts with a fresh budget. The lifetime counter + EUR cost are preserved.
+        if (activePlan.ordinal() < previousPlan.ordinal()) {
+            log.info(
+                    "Plan downgrade detected userId={} {} -> {} — resetting current period's usage counters",
+                    userId, previousPlan, activePlan
+            );
+            usageService.resetUsageForPlanDowngrade(userId, activePlan);
+        }
     }
 
     private SubscriptionStatusResponse toResponse(AppStoreSubscriptionEntity subscription) {
