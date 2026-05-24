@@ -1,5 +1,6 @@
 package com.watchmyai.quota;
 
+import com.watchmyai.subscription.SubscriptionStatusService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -8,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,6 +26,9 @@ class QuotaControllerTest {
 
     @MockitoBean
     private UserPlanService userPlanService;
+
+    @MockitoBean
+    private SubscriptionStatusService subscriptionStatusService;
 
     @Test
     void statusReturnsCurrentQuotaWithoutInternalLimits() throws Exception {
@@ -74,5 +79,11 @@ class QuotaControllerTest {
                 .andExpect(jsonPath("$.monthlyCostCapEur").value(2.00))
                 .andExpect(jsonPath("$.throttleState").value("normal"))
                 .andExpect(jsonPath("$.limits").doesNotExist());
+
+        // Lazy subscription refresh must run before the cached plan is read, otherwise
+        // a stale PLUS row in `user_plans` (e.g. after an Apple-S2S notification was
+        // lost) would let the user keep PLUS limits even though their entitlement has
+        // already expired. Keep the contract identical to `/api/v1/status`.
+        verify(subscriptionStatusService).getCurrentStatus();
     }
 }
