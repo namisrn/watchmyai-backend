@@ -3,6 +3,7 @@
 ## Current Implementation Status
 
 -   Backend stores verified subscription entitlement state in `app_store_subscription`.
+-   iOS Settings exposes account deletion; the backend re-verifies Sign in with Apple, revokes Apple authorization, and removes account-associated service data.
 -   `/api/v1/subscription/sync` verifies App Store transaction JWS when verification is enabled and stores the entitlement before updating the user plan.
 -   `/api/v1/app-store/notifications` accepts App Store Server Notifications V2, verifies nested transaction data, and updates the user plan for renewal, expiration, refund, grace, billing retry, upgrade, and downgrade states.
 -   `/api/v1/plans` exposes the server-side Plan/Quota catalog used by the iOS paywall to avoid client/server limit drift.
@@ -100,7 +101,7 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   Confirm `/api/v1/subscription/sync` receives real `signedTransactionInfo` from StoreKit after purchase/restore.
 -   Confirm `/api/v1/plans` matches paywall copy and final Free/Plus/Pro product limits before App Review.
 -   Run a production backup and restore check before the first paid launch.
--   Add account deletion/export UI before submitting privacy metadata that promises self-service deletion.
+-   Confirm in-app account deletion with a TestFlight test account, including Apple reauthentication, local sign-out, and synced chat removal.
 -   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
 -   Before App Store release, verify `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
 
