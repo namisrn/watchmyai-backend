@@ -26,6 +26,7 @@ public class LegalPageController {
                         <p>AI prompts and generated answers are sent to the WatchMyAI backend and onward to OpenAI only to provide the requested AI response, enforce usage limits, prevent abuse, and operate the service.</p>
                         <p>Subscription status and App Store transaction identifiers are processed to provide Plus and Pro entitlements. Local chat history is stored on your device with SwiftData and may sync privately through your iCloud account when enabled by the system.</p>
                         <p>We do not sell personal data and do not use your data for third-party advertising tracking.</p>
+                        <p>You can delete your WatchMyAI account from Settings in the iPhone app. Deletion removes account sessions, service usage history, subscription associations, and synced chat history. Any Apple subscription must be cancelled separately in your Apple Account.</p>
                         <p>Contact: <a href="mailto:__CONTACT_EMAIL__">__CONTACT_EMAIL__</a></p>
                         """.replace("__CONTACT_EMAIL__", contactEmail)
         ));

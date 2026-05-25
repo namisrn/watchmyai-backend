@@ -33,7 +33,7 @@ public class AppStoreServerService {
                 properties.environment(),
                 properties.verificationEnabled(),
                 properties.hasServerApiCredentials(),
-                properties.readyForProductionVerification()
+                properties.readyForProductionRelease()
         );
     }
 

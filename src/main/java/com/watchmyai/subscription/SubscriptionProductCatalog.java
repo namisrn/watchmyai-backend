@@ -9,9 +9,12 @@ import java.util.Optional;
 @Service
 public class SubscriptionProductCatalog {
 
+    public static final String PLUS_MONTHLY_PRODUCT_ID = "watchmyai.plus.monthly";
+    public static final String PRO_MONTHLY_PRODUCT_ID = "watchmyai.pro.monthly";
+
     private static final Map<String, PlanType> PLAN_BY_PRODUCT_ID = Map.of(
-            "watchmyai.plus.monthly", PlanType.PLUS,
-            "watchmyai.pro.monthly", PlanType.PRO
+            PLUS_MONTHLY_PRODUCT_ID, PlanType.PLUS,
+            PRO_MONTHLY_PRODUCT_ID, PlanType.PRO
     );
 
     public Optional<PlanType> findPlanType(String productId) {

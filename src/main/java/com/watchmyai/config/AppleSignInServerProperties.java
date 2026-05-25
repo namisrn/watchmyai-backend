@@ -24,6 +24,14 @@ public class AppleSignInServerProperties {
         return privateKey;
     }
 
+    public String teamId() {
+        return teamId;
+    }
+
+    public String keyId() {
+        return keyId;
+    }
+
     public boolean hasServerCredentials() {
         return teamId != null && !teamId.isBlank()
                 && keyId != null && !keyId.isBlank()

@@ -1,6 +1,8 @@
 package com.watchmyai.user;
 
 import com.watchmyai.config.SessionProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
@@ -15,7 +18,9 @@ import java.util.Optional;
 @Service
 public class AppSessionService {
 
+    private static final Logger log = LoggerFactory.getLogger(AppSessionService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final Duration SLIDING_RENEWAL_INTERVAL = Duration.ofDays(1);
 
     private final UserSessionRepository userSessionRepository;
     private final AppUserService appUserService;
@@ -46,6 +51,7 @@ public class AppSessionService {
                 expiresAt
         );
         userSessionRepository.save(session);
+        log.info("Session created userId={} source={} expiresAt={}", appUser.getUserId(), source, expiresAt);
 
         return new CreatedSession(
                 sessionToken,
@@ -55,7 +61,7 @@ public class AppSessionService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<UserIdentity> resolveIdentity(String sessionToken) {
         if (sessionToken == null || sessionToken.isBlank()) {
             return Optional.empty();
@@ -67,7 +73,23 @@ public class AppSessionService {
                 .filter(session -> session.isActive(now))
                 .flatMap(session -> appUserService
                         .findByUserId(session.getUserId())
-                        .map(user -> new UserIdentity(user.getUserId(), user.getAppAccountToken().toString())));
+                        .map(user -> {
+                            renewIfDue(session, now);
+                            return new UserIdentity(user.getUserId(), user.getAppAccountToken().toString());
+                        }));
+    }
+
+    /**
+     * Sliding-window session renewal: every time an active session is used its expiry is
+     * pushed back to the full TTL. The write is throttled to at most once per
+     * {@link #SLIDING_RENEWAL_INTERVAL} so it stays cheap on the per-request hot path —
+     * only sessions left completely unused for the whole TTL still reach the hard expiry.
+     */
+    private void renewIfDue(UserSessionEntity session, Instant now) {
+        Instant fullExpiry = now.plus(sessionProperties.ttl());
+        if (session.getExpiresAt().isBefore(fullExpiry.minus(SLIDING_RENEWAL_INTERVAL))) {
+            session.extend(fullExpiry);
+        }
     }
 
     @Transactional

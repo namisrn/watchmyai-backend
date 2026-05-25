@@ -20,8 +20,16 @@ public class UserPlanService {
 
     @Transactional
     public PlanType getCurrentPlan() {
-        String userId = userContextService.getCurrentUser().userId();
+        return getPlanForUser(userContextService.getCurrentUser().userId());
+    }
 
+    /**
+     * Plan lookup for an explicit user. Used by `SubscriptionTransactionService` to read
+     * the previous plan *before* `setCurrentPlanForUser` writes the new one — so the
+     * downgrade-detection logic can compare old vs new and trigger a usage reset.
+     */
+    @Transactional(readOnly = true)
+    public PlanType getPlanForUser(String userId) {
         return userPlanRepository
                 .findByUserId(userId)
                 .map(UserPlanEntity::getPlanType)

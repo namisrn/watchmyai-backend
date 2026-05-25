@@ -13,6 +13,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,13 +27,17 @@ class UsageServiceTest {
             ZoneOffset.UTC
     );
     private static final String CURRENT_PERIOD = "2026-04";
+    private static final PlanLimits FREE_LIMITS =
+            new PlanLimits(PlanType.FREE, 20, 5, 20, 0, 180, new BigDecimal("0.010000"));
 
     private UserUsageRepository userUsageRepository;
+    private PlanConfigService planConfigService;
     private UsageService usageService;
 
     @BeforeEach
     void setUp() {
         userUsageRepository = mock(UserUsageRepository.class);
+        planConfigService = mock(PlanConfigService.class);
         UserContextService userContextService = mock(UserContextService.class);
         UserPlanService userPlanService = mock(UserPlanService.class);
         when(userContextService.getCurrentUser())
@@ -39,7 +45,13 @@ class UsageServiceTest {
         when(userPlanService.getCurrentPlan())
                 .thenReturn(PlanType.FREE);
 
-        usageService = new UsageService(userUsageRepository, userContextService, userPlanService, FIXED_CLOCK);
+        usageService = new UsageService(
+                userUsageRepository,
+                userContextService,
+                userPlanService,
+                planConfigService,
+                FIXED_CLOCK
+        );
     }
 
     @Test
@@ -69,62 +81,101 @@ class UsageServiceTest {
     }
 
     @Test
-    void recordRequestIncrementsLifetimeRequestsForFreePlan() {
-        UserUsageEntity existingUsage = new UserUsageEntity(
-                TEST_USER_ID,
-                PlanType.FREE,
-                CURRENT_PERIOD
-        );
-
+    void reserveRequestReturnsTrueAndCountsLifetimeForFreePlan() {
+        UserUsageEntity existingUsage = new UserUsageEntity(TEST_USER_ID, PlanType.FREE, CURRENT_PERIOD);
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
                 .thenReturn(Optional.of(existingUsage));
+        when(planConfigService.getLimits(PlanType.FREE)).thenReturn(FREE_LIMITS);
+        when(userUsageRepository.reserveSlot(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD), eq(PlanType.FREE),
+                eq(5), eq(20), eq(20), eq(1),
+                eq(new BigDecimal("0.010000")), any(Instant.class)
+        )).thenReturn(1);
 
-        usageService.recordRequest(PlanType.FREE, new BigDecimal("0.001000"), false);
+        boolean reserved = usageService.reserveRequest(PlanType.FREE);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.001000"));
+        assertThat(reserved).isTrue();
+        verify(userUsageRepository).reserveSlot(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD), eq(PlanType.FREE),
+                eq(5), eq(20), eq(20), eq(1),
+                eq(new BigDecimal("0.010000")), any(Instant.class)
+        );
     }
 
     @Test
-    void recordRequestIncrementsMonthlyRequestsForPaidPlan() {
-        UserUsageEntity existingUsage = new UserUsageEntity(
-                TEST_USER_ID,
-                PlanType.PLUS,
-                CURRENT_PERIOD
-        );
-
+    void reserveRequestReturnsFalseWhenQuotaExhausted() {
+        UserUsageEntity existingUsage = new UserUsageEntity(TEST_USER_ID, PlanType.FREE, CURRENT_PERIOD);
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
                 .thenReturn(Optional.of(existingUsage));
+        when(planConfigService.getLimits(PlanType.FREE)).thenReturn(FREE_LIMITS);
+        when(userUsageRepository.reserveSlot(
+                any(), any(), any(), anyInt(), anyInt(), anyInt(), anyInt(), any(), any()
+        )).thenReturn(0);
 
-        usageService.recordRequest(PlanType.PLUS, new BigDecimal("0.005000"), false);
+        boolean reserved = usageService.reserveRequest(PlanType.FREE);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isZero();
-        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedPremiumRequests()).isZero();
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.005000"));
+        assertThat(reserved).isFalse();
     }
 
     @Test
-    void recordRequestIncrementsPremiumRequestsWhenPremiumRequest() {
-        UserUsageEntity existingUsage = new UserUsageEntity(
-                TEST_USER_ID,
-                PlanType.PRO,
-                CURRENT_PERIOD
+    void refundRequestRevertsSlotWithLifetimeForFreePlan() {
+        usageService.refundRequest(PlanType.FREE);
+
+        verify(userUsageRepository).refundSlot(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD), eq(1), any(Instant.class)
         );
+    }
 
+    @Test
+    void refundRequestRevertsSlotWithoutLifetimeForPaidPlan() {
+        usageService.refundRequest(PlanType.PLUS);
+
+        verify(userUsageRepository).refundSlot(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD), eq(0), any(Instant.class)
+        );
+    }
+
+    @Test
+    void finalizeRequestRecordsCost() {
+        usageService.finalizeRequest(PlanType.PRO, new BigDecimal("0.020000"));
+
+        // Premium accounting now happens at reservation time (reservePremium), not at finalize —
+        // finalizeCost only records the actual EUR cost.
+        verify(userUsageRepository).finalizeCost(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD),
+                eq(new BigDecimal("0.020000")), any(Instant.class)
+        );
+    }
+
+    @Test
+    void finalizeRequestRecordsCostForNonPremiumPlan() {
+        usageService.finalizeRequest(PlanType.PLUS, new BigDecimal("0.005000"));
+
+        verify(userUsageRepository).finalizeCost(
+                eq(TEST_USER_ID), eq(CURRENT_PERIOD),
+                eq(new BigDecimal("0.005000")), any(Instant.class)
+        );
+    }
+
+    @Test
+    void planDowngradeStartsFreeWithFreshPeriodAndCostBudget() {
+        UserUsageEntity usage = new UserUsageEntity(TEST_USER_ID, PlanType.PLUS, CURRENT_PERIOD, "2026-04-15");
+        usage.incrementLifetimeRequests();
+        usage.incrementDailyRequests();
+        usage.incrementMonthlyRequests();
+        usage.incrementPremiumRequests();
+        usage.addEstimatedMonthlyCostEur(new BigDecimal("1.500000"));
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
-                .thenReturn(Optional.of(existingUsage));
+                .thenReturn(Optional.of(usage));
 
-        usageService.recordRequest(PlanType.PRO, new BigDecimal("0.020000"), true);
+        usageService.resetUsageForPlanDowngrade(TEST_USER_ID, PlanType.FREE);
 
-        assertThat(existingUsage.getUsedLifetimeRequests()).isZero();
-        assertThat(existingUsage.getUsedDailyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedMonthlyRequests()).isEqualTo(1);
-        assertThat(existingUsage.getUsedPremiumRequests()).isEqualTo(1);
-        assertThat(existingUsage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(new BigDecimal("0.020000"));
+        assertThat(usage.getPlanType()).isEqualTo(PlanType.FREE);
+        assertThat(usage.getUsedLifetimeRequests()).isEqualTo(1);
+        assertThat(usage.getUsedDailyRequests()).isZero();
+        assertThat(usage.getUsedMonthlyRequests()).isZero();
+        assertThat(usage.getUsedPremiumRequests()).isZero();
+        assertThat(usage.getEstimatedMonthlyCostEur()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(userUsageRepository).save(usage);
     }
 }

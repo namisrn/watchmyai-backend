@@ -87,8 +87,8 @@ public class ProductionSecretsValidator implements ApplicationRunner {
         } else if (!looksLikePrivateKey(appStoreServerProperties.privateKey())) {
             errors.add("APP_STORE_PRIVATE_KEY must contain the full .p8 private key including BEGIN/END PRIVATE KEY.");
         }
-        if (!isDeployableAppStoreEnvironment(appStoreServerProperties.environment())) {
-            errors.add("APP_STORE_ENVIRONMENT must be SANDBOX for TestFlight or PRODUCTION for release.");
+        if (!isProductionAppStoreEnvironment(appStoreServerProperties.environment())) {
+            errors.add("APP_STORE_ENVIRONMENT must be PRODUCTION in prod; the production verifier also accepts Sandbox/TestFlight transactions through its fallback.");
         }
         if (!appStoreServerProperties.verificationEnabled()) {
             errors.add("APP_STORE_VERIFICATION_ENABLED must be true in prod.");
@@ -111,13 +111,13 @@ public class ProductionSecretsValidator implements ApplicationRunner {
                 && normalized.contains("-----END PRIVATE KEY-----");
     }
 
-    private boolean isDeployableAppStoreEnvironment(String raw) {
+    private boolean isProductionAppStoreEnvironment(String raw) {
         if (raw == null || raw.isBlank()) {
             return false;
         }
 
         String normalized = raw.trim().toUpperCase(Locale.ROOT);
-        return normalized.equals("SANDBOX") || normalized.equals("PRODUCTION");
+        return normalized.equals("PRODUCTION");
     }
 
     private boolean hasActiveProfile(String profile) {

@@ -17,17 +17,20 @@ public class AuthController {
     private final AppleIdentityTokenVerifier appleIdentityTokenVerifier;
     private final AppUserService appUserService;
     private final AppSessionService appSessionService;
+    private final AccountDeletionService accountDeletionService;
 
     public AuthController(
             UserContextService userContextService,
             AppleIdentityTokenVerifier appleIdentityTokenVerifier,
             AppUserService appUserService,
-            AppSessionService appSessionService
+            AppSessionService appSessionService,
+            AccountDeletionService accountDeletionService
     ) {
         this.userContextService = userContextService;
         this.appleIdentityTokenVerifier = appleIdentityTokenVerifier;
         this.appUserService = appUserService;
         this.appSessionService = appSessionService;
+        this.accountDeletionService = accountDeletionService;
     }
 
     @GetMapping("/status")
@@ -37,7 +40,7 @@ public class AuthController {
 
     @PostMapping("/apple")
     public AuthSessionResponse apple(@Valid @RequestBody AppleAuthRequest request) {
-        AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(request.identityToken());
+        AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(request.identityToken(), request.nonce());
         AppUserEntity appUser = appUserService.findOrCreateAppleUser(appleUser, request.appleUserId());
 
         return AuthSessionResponse.from(appSessionService.createSession(
@@ -54,6 +57,18 @@ public class AuthController {
     ) {
         appSessionService.revoke(resolveSessionToken(logoutRequest, httpRequest));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/delete-account")
+    public AccountDeletionResponse deleteAccount(@Valid @RequestBody AccountDeletionRequest request) {
+        UserIdentity currentUser = userContextService.getCurrentUser();
+        AppleUserIdentity confirmedUser = appleIdentityTokenVerifier.verify(request.identityToken(), request.nonce());
+        if (!currentUser.userId().equals("apple:" + confirmedUser.subject())) {
+            throw new AuthenticationRequiredException("Apple confirmation does not match the signed-in account.");
+        }
+
+        accountDeletionService.deleteAccount(currentUser.userId(), request.authorizationCode());
+        return new AccountDeletionResponse(true);
     }
 
     private String resolveSessionToken(LogoutRequest logoutRequest, HttpServletRequest request) {

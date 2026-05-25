@@ -19,6 +19,8 @@ public record SubscriptionSyncRequest(
         @NotBlank
         String signedTransactionInfo,
 
+        Long expirationDateMilliseconds,
+
         @Pattern(
                 regexp = "|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
                 message = "appAccountToken must be a UUID"

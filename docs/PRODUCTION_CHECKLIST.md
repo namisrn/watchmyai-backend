@@ -3,10 +3,13 @@
 ## Current Implementation Status
 
 -   Backend stores verified subscription entitlement state in `app_store_subscription`.
+-   iOS Settings exposes account deletion; the backend re-verifies Sign in with Apple, revokes Apple authorization, and removes account-associated service data.
 -   `/api/v1/subscription/sync` verifies App Store transaction JWS when verification is enabled and stores the entitlement before updating the user plan.
 -   `/api/v1/app-store/notifications` accepts App Store Server Notifications V2, verifies nested transaction data, and updates the user plan for renewal, expiration, refund, grace, billing retry, upgrade, and downgrade states.
+-   `/api/v1/plans` exposes the server-side Plan/Quota catalog used by the iOS paywall to avoid client/server limit drift.
 -   Production profile exposes health/readiness endpoints through Spring Boot Actuator.
--   `/api/v1/ai/ask` has an in-memory per-user/per-IP rate limit for the first production pass.
+-   `/api/v1/ai/ask`, AI polling, auth, subscription sync, and App Store notifications have Redis-backed production rate limits.
+-   AI model routing, token pricing, FX rate, plan limits, and monthly cost caps are config-backed under `watchmyai.ai.*` and `watchmyai.plan-catalog`.
 -   Debug plan manipulation remains disabled in `prod`.
 -   Live deployment at `https://api.watchmyai.app` reports health `UP`.
 -   Live App Store Server status reports `verificationEnabled=true`, `credentialsConfigured=true`, and `productionReady=true`.
@@ -24,8 +27,9 @@
 -   `APP_STORE_ISSUER_ID`
 -   `APP_STORE_KEY_ID`
 -   `APP_STORE_PRIVATE_KEY`
--   `APP_STORE_ENVIRONMENT=SANDBOX` for TestFlight, `PRODUCTION` for release
+-   `APP_STORE_ENVIRONMENT=PRODUCTION` (TestFlight/Sandbox transactions are verified by the fallback verifier)
 -   `APP_STORE_VERIFICATION_ENABLED=true` after App Store Server credentials are set
+-   `WATCHMYAI_USD_TO_EUR` reviewed before release and whenever OpenAI billing currency assumptions change
 
 ## Production Startup Gate
 
@@ -36,8 +40,9 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   `APP_STORE_BUNDLE_ID` is `com.sasanrafatnami.WatchMyAI`.
 -   `APP_STORE_APP_APPLE_ID` is a positive numeric App Store Connect app ID.
 -   `APP_STORE_ISSUER_ID`, `APP_STORE_KEY_ID`, and the full `.p8` `APP_STORE_PRIVATE_KEY` are present.
--   `APP_STORE_ENVIRONMENT` is `SANDBOX` for TestFlight or `PRODUCTION` for release.
+-   `APP_STORE_ENVIRONMENT=PRODUCTION`; the live backend must not use Sandbox as its primary verifier.
 -   `APP_STORE_VERIFICATION_ENABLED=true`.
+-   Every configured AI model has matching pricing.
 
 ## App Store Server API
 
@@ -50,10 +55,10 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
     -   set `APP_STORE_APP_APPLE_ID`
     -   keep `APP_STORE_BUNDLE_ID=com.sasanrafatnami.WatchMyAI`
 -   Verification:
-    -   Sandbox/TestFlight: `APP_STORE_ENVIRONMENT=SANDBOX`
-    -   Release: `APP_STORE_ENVIRONMENT=PRODUCTION`
+    -   Production backend: `APP_STORE_ENVIRONMENT=PRODUCTION`
+    -   TestFlight receipts still report `SANDBOX` and are accepted through the validated Sandbox fallback
     -   enable `APP_STORE_VERIFICATION_ENABLED=true`
-    -   `/api/v1/app-store/status` must report `productionReady=true`
+    -   authenticated `/api/v1/app-store/status` must report `productionReady=true`
 
 ## App Store Connect
 
@@ -68,8 +73,8 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
     -   purchase/subscription status
     -   AI prompts and generated answers
 -   Add Terms of Use and Privacy Policy URLs. The frontend currently points to:
-    -   `https://watchmyai.app/privacy`
-    -   `https://watchmyai.app/terms`
+    -   `https://api.watchmyai.app/privacy`
+    -   `https://api.watchmyai.app/terms`
 
 ## Monitoring
 
@@ -82,6 +87,8 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
     -   OpenAI provider 429
     -   App Store verification failures
     -   backend 5xx spike
+    -   AI job queue saturation
+    -   monthly AI cost burn approaching plan caps
 -   Every response includes `X-Request-Id`; include this ID in support/debug notes.
 -   For VPS production, add external uptime checks for:
     -   `GET /actuator/health`
@@ -92,9 +99,11 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   Run a TestFlight sandbox purchase for Plus and Pro, then Restore Purchases.
 -   Confirm App Store Server Notifications arrive in backend logs and update `/api/v1/subscription/status`.
 -   Confirm `/api/v1/subscription/sync` receives real `signedTransactionInfo` from StoreKit after purchase/restore.
--   Confirm rate limits match the final Free/Plus/Pro product limits before App Review.
+-   Confirm `/api/v1/plans` matches paywall copy and final Free/Plus/Pro product limits before App Review.
+-   Run a production backup and restore check before the first paid launch.
+-   Confirm in-app account deletion with a TestFlight test account, including Apple reauthentication, local sign-out, and synced chat removal.
 -   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
--   Before App Store release, switch `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
+-   Before App Store release, verify `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
 
 ## Release Gates
 
@@ -105,6 +114,7 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   `/api/v1/auth/status` returns `userType=apple`.
 -   `/api/v1/subscription/status` reflects the active plan.
 -   StoreKit purchase and restore both sync to backend.
--   App Store Server status reports `productionReady=true`.
+-   App Store Server status reports `productionReady=true` with authenticated release gate token.
+-   `/api/v1/plans` returns Free `5/day`, `20/month`, Plus `100/day`, `1000/month`, Pro `200/day`, `1500/month`.
 -   Debug endpoints remain unavailable outside `dev`.
 -   Failed requests include a `requestId` in JSON and `X-Request-Id` response header.

@@ -18,6 +18,7 @@ class SubscriptionSyncServiceTest {
                 "original-1",
                 "sandbox",
                 "header.payload.signature",
+                null,
                 "de305d54-75b4-431b-adb2-eb6b9e546014"
         );
         doReturn(new SubscriptionStatusResponse(
@@ -35,7 +36,8 @@ class SubscriptionSyncServiceTest {
 
         SubscriptionSyncService service = new SubscriptionSyncService(
                 appStoreServerService(),
-                entitlementService
+                entitlementService,
+                new SubscriptionProductCatalog()
         );
 
         SubscriptionStatusResponse response = service.sync(request);

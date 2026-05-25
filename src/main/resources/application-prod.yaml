@@ -1,8 +1,20 @@
+server:
+  tomcat:
+    max-http-form-post-size: 65536
+    max-swallow-size: 65536
+
 spring:
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      keepalive-time: 60000
 
   flyway:
     enabled: true
@@ -18,16 +30,35 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
   endpoint:
     health:
       probes:
         enabled: true
       show-details: never
+      show-components: never
+  metrics:
+    tags:
+      application: watchmyai-backend
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    diskspace:
+      enabled: false
 
 watchmyai:
   debug:
     endpoints-enabled: false
-  auth:
-    apple:
-      audience: ${APPLE_CLIENT_ID:}
+  app-store:
+    # A production deployment uses Apple's production verifier first; the service
+    # still accepts TestFlight/Sandbox transactions using its verified fallback.
+    environment: ${APP_STORE_ENVIRONMENT:PRODUCTION}
+  # watchmyai.auth.apple.audience is intentionally NOT overridden here: it inherits the
+  # safe default from application.yaml (the app's own bundle IDs). ProductionSecretsValidator
+  # still fails startup if APPLE_CLIENT_ID resolves to something without the expected ID.
