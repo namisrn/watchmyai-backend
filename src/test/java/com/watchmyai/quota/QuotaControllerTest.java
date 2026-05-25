@@ -35,26 +35,26 @@ class QuotaControllerTest {
         PlanLimits limits = new PlanLimits(
                 PlanType.PLUS,
                 0,
-                100,
-                1000,
+                60,
+                500,
                 0,
                 300,
-                new BigDecimal("2.000000")
+                new BigDecimal("1.200000")
         );
         QuotaCheckResult quota = new QuotaCheckResult(
                 PlanType.PLUS,
                 true,
-                734,
-                74,
-                100,
-                26,
-                734,
-                1000,
+                367,
+                44,
+                60,
+                27,
+                367,
+                500,
                 0,
                 0,
-                26,
-                new BigDecimal("0.520000"),
-                new BigDecimal("2.000000"),
+                27,
+                new BigDecimal("0.310000"),
+                new BigDecimal("1.200000"),
                 QuotaState.NORMAL,
                 limits
         );
@@ -68,15 +68,15 @@ class QuotaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.planType").value("PLUS"))
                 .andExpect(jsonPath("$.requestAllowed").value(true))
-                .andExpect(jsonPath("$.remainingRequests").value(734))
-                .andExpect(jsonPath("$.dailyRemainingRequests").value(74))
-                .andExpect(jsonPath("$.dailyRequestLimit").value(100))
-                .andExpect(jsonPath("$.dailyUsagePercent").value(26))
-                .andExpect(jsonPath("$.monthlyRemainingRequests").value(734))
-                .andExpect(jsonPath("$.monthlyRequestLimit").value(1000))
-                .andExpect(jsonPath("$.monthlyUsagePercent").value(26))
-                .andExpect(jsonPath("$.estimatedMonthlyCostEur").value(0.52))
-                .andExpect(jsonPath("$.monthlyCostCapEur").value(2.00))
+                .andExpect(jsonPath("$.remainingRequests").value(367))
+                .andExpect(jsonPath("$.dailyRemainingRequests").value(44))
+                .andExpect(jsonPath("$.dailyRequestLimit").value(60))
+                .andExpect(jsonPath("$.dailyUsagePercent").value(27))
+                .andExpect(jsonPath("$.monthlyRemainingRequests").value(367))
+                .andExpect(jsonPath("$.monthlyRequestLimit").value(500))
+                .andExpect(jsonPath("$.monthlyUsagePercent").value(27))
+                .andExpect(jsonPath("$.estimatedMonthlyCostEur").value(0.31))
+                .andExpect(jsonPath("$.monthlyCostCapEur").value(1.20))
                 .andExpect(jsonPath("$.throttleState").value("normal"))
                 .andExpect(jsonPath("$.limits").doesNotExist());
 

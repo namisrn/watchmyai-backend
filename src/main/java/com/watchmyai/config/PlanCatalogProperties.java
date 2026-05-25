@@ -42,9 +42,12 @@ public record PlanCatalogProperties(Map<PlanType, PlanDefinition> plans) {
 
     private static EnumMap<PlanType, PlanDefinition> defaultPlanDefinitions() {
         EnumMap<PlanType, PlanDefinition> defaults = new EnumMap<>(PlanType.class);
-        defaults.put(PlanType.FREE, new PlanDefinition(0, 5, 20, 0, 180, new BigDecimal("0.20")));
-        defaults.put(PlanType.PLUS, new PlanDefinition(0, 100, 1000, 0, 300, new BigDecimal("2.00")));
-        defaults.put(PlanType.PRO, new PlanDefinition(0, 200, 1500, 100, 400, new BigDecimal("4.50")));
+        // Keep in sync with application.yaml plan-catalog defaults. Both must match,
+        // because PlanConfigService falls back to these defaults when no YAML config
+        // is present (unit tests, dev profiles, missing config files).
+        defaults.put(PlanType.FREE, new PlanDefinition(0, 5, 20, 0, 180, new BigDecimal("0.10")));
+        defaults.put(PlanType.PLUS, new PlanDefinition(0, 60, 500, 0, 300, new BigDecimal("1.20")));
+        defaults.put(PlanType.PRO, new PlanDefinition(0, 150, 1000, 60, 400, new BigDecimal("2.80")));
         return defaults;
     }
 

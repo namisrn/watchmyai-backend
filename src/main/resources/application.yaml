@@ -28,6 +28,12 @@ watchmyai:
   legal:
     contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
   plan-catalog:
+    # Limits & cost-caps tuned for Year-1 profitability under Apple's 30% cut.
+    # Worst-case marge after 30% Apple fee:
+    #   PLUS  $2.99 ≈ €2.75 brutto → €1.92 netto, max cost €1.20 → ~37% margin
+    #   PRO   $5.99 ≈ €5.51 brutto → €3.86 netto, max cost €2.80 → ~27% margin
+    # Monthly limits sit well above the P95 expected usage for a watchOS Q&A
+    # assistant, so no real user will feel them — only abuse paths are bounded.
     plans:
       FREE:
         lifetime-request-limit: 0
@@ -35,21 +41,21 @@ watchmyai:
         monthly-request-limit: 20
         monthly-premium-request-limit: 0
         max-output-tokens: 180
-        monthly-cost-cap-eur: 0.20
+        monthly-cost-cap-eur: 0.10
       PLUS:
         lifetime-request-limit: 0
-        daily-request-limit: 100
-        monthly-request-limit: 1000
+        daily-request-limit: 60
+        monthly-request-limit: 500
         monthly-premium-request-limit: 0
         max-output-tokens: 300
-        monthly-cost-cap-eur: 2.00
+        monthly-cost-cap-eur: 1.20
       PRO:
         lifetime-request-limit: 0
-        daily-request-limit: 200
-        monthly-request-limit: 1500
-        monthly-premium-request-limit: 100
+        daily-request-limit: 150
+        monthly-request-limit: 1000
+        monthly-premium-request-limit: 60
         max-output-tokens: 400
-        monthly-cost-cap-eur: 4.50
+        monthly-cost-cap-eur: 2.80
   ai:
     model-policy:
       default-model: gpt-5.4-mini

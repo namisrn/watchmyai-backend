@@ -56,12 +56,12 @@ class QuotaServiceTest {
 
     @Test
     void plusPlanEntersCarefulStateAt70PercentMonthlyUsage() {
-        // PLUS: 100 daily / 1000 monthly
+        // PLUS: 60 daily / 500 monthly → 70% of 500 = 350
         when(usageService.getCurrentUsage())
                 .thenReturn(new UsageSnapshot(
                         0,
                         10,
-                        700,
+                        350,
                         0,
                         new BigDecimal("0.50000")
                 ));
@@ -74,11 +74,12 @@ class QuotaServiceTest {
 
     @Test
     void plusPlanEntersRestrictedStateAt90PercentMonthlyUsage() {
+        // PLUS: 60 daily / 500 monthly → 90% of 500 = 450
         when(usageService.getCurrentUsage())
                 .thenReturn(new UsageSnapshot(
                         0,
                         10,
-                        900,
+                        450,
                         0,
                         new BigDecimal("0.50000")
                 ));

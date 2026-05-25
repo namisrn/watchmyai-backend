@@ -31,9 +31,9 @@ class PlanCatalogControllerTest {
     @Test
     void returnsPlanCatalogForPaywall() throws Exception {
         when(planConfigService.allLimits()).thenReturn(Map.of(
-                PlanType.FREE, new PlanLimits(PlanType.FREE, 0, 5, 20, 0, 180, new BigDecimal("0.20")),
-                PlanType.PLUS, new PlanLimits(PlanType.PLUS, 0, 100, 1000, 0, 300, new BigDecimal("2.00")),
-                PlanType.PRO, new PlanLimits(PlanType.PRO, 0, 200, 1500, 100, 400, new BigDecimal("4.50"))
+                PlanType.FREE, new PlanLimits(PlanType.FREE, 0, 5, 20, 0, 180, new BigDecimal("0.10")),
+                PlanType.PLUS, new PlanLimits(PlanType.PLUS, 0, 60, 500, 0, 300, new BigDecimal("1.20")),
+                PlanType.PRO, new PlanLimits(PlanType.PRO, 0, 150, 1000, 60, 400, new BigDecimal("2.80"))
         ));
         when(productCatalog.findProductId(PlanType.PLUS)).thenReturn(Optional.of("watchmyai.plus.monthly"));
         when(productCatalog.findProductId(PlanType.PRO)).thenReturn(Optional.of("watchmyai.pro.monthly"));
@@ -44,6 +44,6 @@ class PlanCatalogControllerTest {
                 .andExpect(jsonPath("$.plans[0].dailyRequestLimit").value(5))
                 .andExpect(jsonPath("$.plans[0].monthlyRequestLimit").value(20))
                 .andExpect(jsonPath("$.plans[1].productId").value("watchmyai.plus.monthly"))
-                .andExpect(jsonPath("$.plans[2].monthlyPremiumRequestLimit").value(100));
+                .andExpect(jsonPath("$.plans[2].monthlyPremiumRequestLimit").value(60));
     }
 }

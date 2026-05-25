@@ -18,7 +18,7 @@ class PlanConfigServiceTest {
 
         assertThat(free.dailyRequestLimit()).isEqualTo(5);
         assertThat(free.monthlyRequestLimit()).isEqualTo(20);
-        assertThat(free.monthlyCostCapEur()).isEqualByComparingTo("0.20");
+        assertThat(free.monthlyCostCapEur()).isEqualByComparingTo("0.10");
     }
 
     @Test
@@ -35,6 +35,6 @@ class PlanConfigServiceTest {
         assertThat(free.monthlyRequestLimit()).isEqualTo(88);
         assertThat(free.maxOutputTokens()).isEqualTo(220);
         assertThat(free.monthlyCostCapEur()).isEqualByComparingTo("0.33");
-        assertThat(service.getLimits(PlanType.PLUS).monthlyRequestLimit()).isEqualTo(1000);
+        assertThat(service.getLimits(PlanType.PLUS).monthlyRequestLimit()).isEqualTo(500);
     }
 }
