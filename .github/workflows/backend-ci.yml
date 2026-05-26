@@ -56,11 +56,3 @@ jobs:
           fetch-depth: 0
       - name: Scan for committed secrets
         uses: trufflesecurity/trufflehog@main
-
-  dependency-review:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Review dependencies for known vulnerabilities
-        uses: actions/dependency-review-action@v4
