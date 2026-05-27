@@ -79,7 +79,8 @@ class AiServiceIdempotencyTest {
                 aiRequestLogRepository,
                 userContextService,
                 synchronousExecutor,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                mock(com.watchmyai.telemetry.TelemetryService.class)
         );
     }
 

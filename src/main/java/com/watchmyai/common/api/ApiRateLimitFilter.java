@@ -45,9 +45,19 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             new RateLimitPolicy("POST", "/api/v1/ai/ask", false, "ai-ask", 30),
             new RateLimitPolicy("GET", "/api/v1/ai/ask/", true, "ai-ask-poll", 120),
             new RateLimitPolicy("POST", "/api/v1/auth/apple", false, "auth-apple", 10),
+            // Apple's Sign-In server-to-server notifications endpoint. Apple's
+            // traffic is naturally bounded (one notification per consent change),
+            // so 60/min/IP is a generous ceiling that still throttles anyone
+            // blasting forged JWTs at us (they'll all fail signature anyway).
+            new RateLimitPolicy("POST", "/api/v1/auth/apple/notifications", false, "auth-apple-notifications", 60),
             new RateLimitPolicy("POST", "/api/v1/auth/delete-account", false, "auth-delete-account", 5),
             new RateLimitPolicy("POST", "/api/v1/subscription/sync", false, "subscription-sync", 20),
-            new RateLimitPolicy("POST", "/api/v1/app-store/notifications", false, "app-store-notifications", 120)
+            new RateLimitPolicy("POST", "/api/v1/app-store/notifications", false, "app-store-notifications", 120),
+            // Telemetry batches: 60/min = ein Client der alle 30s einen Batch schickt
+            // hat 2 Aufrufe/Min — 30x Reserve für Wiederholungen nach Netzwerk-Drops
+            // und parallele iOS/Watch-Clients pro IP (NAT). Bei legitimem Verkehr
+            // wird nie geblockt; ein Spammer hingegen schon.
+            new RateLimitPolicy("POST", "/api/v1/telemetry/events", false, "telemetry-events", 60)
     );
 
     private final Clock clock;

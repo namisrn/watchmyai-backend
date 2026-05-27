@@ -22,6 +22,7 @@ class SubscriptionTransactionServiceTest {
     private final SubscriptionProductCatalog productCatalog = mock(SubscriptionProductCatalog.class);
     private final UserPlanService userPlanService = mock(UserPlanService.class);
     private final UsageService usageService = mock(UsageService.class);
+    private final com.watchmyai.telemetry.TelemetryService telemetryService = mock(com.watchmyai.telemetry.TelemetryService.class);
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC);
 
     private final SubscriptionTransactionService service = new SubscriptionTransactionService(
@@ -30,6 +31,7 @@ class SubscriptionTransactionServiceTest {
             productCatalog,
             userPlanService,
             usageService,
+            telemetryService,
             clock
     );
 
