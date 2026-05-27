@@ -1,5 +1,7 @@
 package com.watchmyai.quota;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -7,6 +9,8 @@ import java.math.RoundingMode;
 
 @Service
 public class QuotaService {
+
+    private static final Logger log = LoggerFactory.getLogger(QuotaService.class);
 
     private final PlanConfigService planConfigService;
     private final UsageService usageService;
@@ -43,6 +47,22 @@ public class QuotaService {
                 lifetimeRemainingRequests,
                 Math.min(dailyRemainingRequests, monthlyRemainingRequests)
         );
+
+        // S3-5 diagnostic: a "fresh" user (used == 0) must never compute as
+        // "monthly exhausted". If this fires, the bug is upstream — most likely
+        // a plan-limit config returning 0 for the monthly cap or a stale row
+        // mid-period-rollover. Logged at WARN so on-call can find it without
+        // chasing a user-side support ticket.
+        boolean monthlyExhaustedDespiteNoUsage = limits.monthlyRequestLimit() > 0
+                && monthlyRemainingRequests <= 0
+                && usage.usedMonthlyRequests() <= 0;
+        if (monthlyExhaustedDespiteNoUsage) {
+            log.warn(
+                    "Quota anomaly: monthly exhausted with zero usage. planType={} monthlyLimit={} usedMonthlyRequests={} usedDailyRequests={} estimatedMonthlyCostEur={}",
+                    planType, limits.monthlyRequestLimit(), usage.usedMonthlyRequests(),
+                    usage.usedDailyRequests(), usage.estimatedMonthlyCostEur()
+            );
+        }
 
         boolean requestAllowed = remainingRequests > 0
                 && usage.estimatedMonthlyCostEur().compareTo(limits.monthlyCostCapEur()) < 0;

@@ -7,6 +7,7 @@ import com.watchmyai.quota.QuotaState;
 import com.watchmyai.quota.UsageService;
 import com.watchmyai.quota.CostEstimatorService;
 import com.watchmyai.quota.UserPlanService;
+import com.watchmyai.telemetry.TelemetryService;
 import com.watchmyai.user.UserContextService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -41,6 +42,7 @@ public class AiService {
     private final UserContextService userContextService;
     private final Executor aiJobExecutor;
     private final Counter quotaBlockedCounter;
+    private final TelemetryService telemetryService;
 
     public AiService(
             ModelRouter modelRouter,
@@ -53,7 +55,8 @@ public class AiService {
             AiRequestLogRepository aiRequestLogRepository,
             UserContextService userContextService,
             @Qualifier("aiJobExecutor") Executor aiJobExecutor,
-            MeterRegistry meterRegistry
+            MeterRegistry meterRegistry,
+            TelemetryService telemetryService
     ) {
         this.modelRouter = modelRouter;
         this.promptBuilder = promptBuilder;
@@ -66,6 +69,7 @@ public class AiService {
         this.userContextService = userContextService;
         this.aiJobExecutor = aiJobExecutor;
         this.quotaBlockedCounter = meterRegistry.counter("watchmyai.ai.quota_blocked");
+        this.telemetryService = telemetryService;
     }
 
     /**
@@ -127,6 +131,20 @@ public class AiService {
                     currentPlan,
                     quota.remainingRequests(),
                     quota.throttleState()
+            );
+            // Funnel-Signal: an dieser Stelle weiß der User, dass er kein Plus/Pro-Nutzen
+            // bekommt, aber wir können messen warum (throttleState gibt daily/monthly/cost).
+            // Telemetry darf die Business-Logik nicht abbrechen — try/catch.
+            recordTelemetrySafely(
+                    "quota_blocked",
+                    userId,
+                    "backend",
+                    currentPlan,
+                    java.util.Map.of(
+                            "throttle_state", quota.throttleState().toApiValue(),
+                            "remaining_requests", quota.remainingRequests(),
+                            "monthly_usage_percent", quota.monthlyUsagePercent()
+                    )
             );
             AskAIResponse blocked = blockedResponse(currentPlan, quota);
             completeRequestLog(requestLog, blocked, 0, 0, BigDecimal.ZERO);
@@ -190,6 +208,23 @@ public class AiService {
                     updatedQuota.throttleState().toApiValue()
             );
             completeRequestLog(requestLog, response, inputTokens, outputTokens, estimatedRequestCostEur);
+
+            // Funnel-Signal "echte Wertstiftung": eine erfolgreiche KI-Antwort wurde
+            // ausgeliefert. Properties enthalten KEINE Inhalte, nur Metadaten für
+            // Kosten- und Performance-Analyse (Tokens, Modell, gewählter Mode).
+            recordTelemetrySafely(
+                    "ai_answer_completed",
+                    userId,
+                    "backend",
+                    currentPlan,
+                    java.util.Map.of(
+                            "model", model,
+                            "mode", request.mode(),
+                            "input_tokens", inputTokens,
+                            "output_tokens", outputTokens,
+                            "used_premium_model", usePremiumModel
+                    )
+            );
         } catch (RuntimeException exception) {
             // OpenAI failure (or any unexpected error): refund the reserved slot and mark the
             // job failed so the polling client receives a terminal error instead of hanging.
@@ -247,6 +282,26 @@ public class AiService {
                 quota.monthlyCostCapEur(),
                 quota.throttleState().toApiValue()
         );
+    }
+
+    /**
+     * Wrapper um {@code telemetryService.record} der NIEMALS eine Exception
+     * weiterreicht. Telemetrie darf die Business-Logik nicht abbrechen —
+     * Sanitization-Verstöße werden geloggt, alles andere ignoriert.
+     */
+    private void recordTelemetrySafely(
+            String eventName,
+            String userId,
+            String platform,
+            PlanType plan,
+            java.util.Map<String, Object> properties
+    ) {
+        try {
+            String planName = plan != null ? plan.name().toLowerCase(java.util.Locale.ROOT) : null;
+            telemetryService.record(eventName, userId, platform, planName, null, null, properties);
+        } catch (RuntimeException e) {
+            log.warn("Telemetry record failed event={} reason={}", eventName, e.getMessage());
+        }
     }
 
     private void completeRequestLog(

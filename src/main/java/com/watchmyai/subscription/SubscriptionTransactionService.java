@@ -34,6 +34,7 @@ public class SubscriptionTransactionService {
     private final SubscriptionProductCatalog productCatalog;
     private final UserPlanService userPlanService;
     private final UsageService usageService;
+    private final com.watchmyai.telemetry.TelemetryService telemetryService;
     private final Clock clock;
 
     public SubscriptionTransactionService(
@@ -42,6 +43,7 @@ public class SubscriptionTransactionService {
             SubscriptionProductCatalog productCatalog,
             UserPlanService userPlanService,
             UsageService usageService,
+            com.watchmyai.telemetry.TelemetryService telemetryService,
             Clock clock
     ) {
         this.subscriptionRepository = subscriptionRepository;
@@ -49,6 +51,7 @@ public class SubscriptionTransactionService {
         this.productCatalog = productCatalog;
         this.userPlanService = userPlanService;
         this.usageService = usageService;
+        this.telemetryService = telemetryService;
         this.clock = clock;
     }
 
@@ -107,6 +110,34 @@ public class SubscriptionTransactionService {
         persistSubscription(userId, originalTransactionId, subscription -> subscription.update(update));
 
         PlanType resultingPlan = refreshUserPlan(userId);
+
+        // Funnel-Signal: ein subscription-state-change wurde durchgeführt.
+        // Der Event-Name ist bewusst neutral — er deckt Kauf, Renewal, Refund,
+        // Cancel und Downgrade gleichermaßen ab. Die Properties differenzieren
+        // (notificationType ist der Apple-S2S-Type wie DID_RENEW / REFUND).
+        try {
+            String planName = resultingPlan != null ? resultingPlan.name().toLowerCase(java.util.Locale.ROOT) : null;
+            telemetryService.record(
+                    "subscription_state_changed",
+                    userId,
+                    "backend",
+                    planName,
+                    null,
+                    null,
+                    java.util.Map.of(
+                            "product_id", productId,
+                            "verification_source", verificationSource == null ? "unknown" : verificationSource,
+                            "notification_type", notificationType == null ? "none" : notificationType,
+                            "notification_subtype", notificationSubtype == null ? "none" : notificationSubtype,
+                            "active", active,
+                            "billing_retry", billingRetry,
+                            "grace_period", gracePeriod
+                    )
+            );
+        } catch (RuntimeException telemetryException) {
+            // Telemetrie darf den Subscription-Sync nicht abbrechen.
+        }
+
         return buildActiveStatus(userId, resultingPlan);
     }
 

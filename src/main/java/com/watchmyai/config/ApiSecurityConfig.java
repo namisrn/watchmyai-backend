@@ -32,6 +32,7 @@ public class ApiSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple/notifications").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/app-store/notifications").permitAll()
                         // Bearer/session validation remains centralized in UserContextService so
                         // controllers keep their existing dev/test and opaque-session behavior.
