@@ -20,4 +20,10 @@ USER appuser
 
 EXPOSE 8080
 
+# Dieses Image IST das Produktions-Artefakt — ohne aktives Profil hätte die App
+# keinen Datasource (steht nur in application-prod.yaml) und der
+# ProductionSecretsValidator liefe nicht. Default daher auf prod; zur Laufzeit
+# via `-e SPRING_PROFILES_ACTIVE=...` überschreibbar.
+ENV SPRING_PROFILES_ACTIVE=prod
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
