@@ -4,6 +4,8 @@ import com.watchmyai.ai.AiRequestLogRepository;
 import com.watchmyai.quota.UserPlanRepository;
 import com.watchmyai.quota.UserUsageRepository;
 import com.watchmyai.subscription.AppStoreSubscriptionRepository;
+import com.watchmyai.telemetry.TelemetryEventRepository;
+import com.watchmyai.telemetry.TelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,8 @@ public class AppleSignInNotificationService {
     private final UserUsageRepository userUsageRepository;
     private final UserPlanRepository userPlanRepository;
     private final UserSessionRepository userSessionRepository;
+    private final TelemetryEventRepository telemetryEventRepository;
+    private final TelemetryService telemetryService;
 
     public AppleSignInNotificationService(
             AppUserRepository appUserRepository,
@@ -40,7 +44,9 @@ public class AppleSignInNotificationService {
             AppStoreSubscriptionRepository appStoreSubscriptionRepository,
             UserUsageRepository userUsageRepository,
             UserPlanRepository userPlanRepository,
-            UserSessionRepository userSessionRepository
+            UserSessionRepository userSessionRepository,
+            TelemetryEventRepository telemetryEventRepository,
+            TelemetryService telemetryService
     ) {
         this.appUserRepository = appUserRepository;
         this.aiRequestLogRepository = aiRequestLogRepository;
@@ -48,6 +54,8 @@ public class AppleSignInNotificationService {
         this.userUsageRepository = userUsageRepository;
         this.userPlanRepository = userPlanRepository;
         this.userSessionRepository = userSessionRepository;
+        this.telemetryEventRepository = telemetryEventRepository;
+        this.telemetryService = telemetryService;
     }
 
     @Transactional
@@ -101,6 +109,10 @@ public class AppleSignInNotificationService {
      */
     private void purgeAccount(String userId) {
         aiRequestLogRepository.deleteByUserId(userId);
+        // Telemetrie über den gehashten user_id_hash löschen — identisch zu
+        // AccountDeletionService, damit auch die server-initiierte Löschung
+        // (Apple-Widerruf via iCloud-Settings) Art. 17 DSGVO vollständig erfüllt.
+        telemetryEventRepository.deleteByUserIdHash(telemetryService.hashUserIdForDeletion(userId));
         appStoreSubscriptionRepository.deleteByUserId(userId);
         userUsageRepository.deleteByUserId(userId);
         userPlanRepository.deleteByUserId(userId);
