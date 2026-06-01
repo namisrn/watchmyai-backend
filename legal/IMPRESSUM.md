@@ -29,16 +29,8 @@ E-Mail:   support@watchmyai.app
 
 **Umsatzsteuer**
 
-> Wähle EINE der beiden Varianten und lösche die andere:
-
-**Variante A — Kleinunternehmer nach § 19 UStG (üblich für Indie-Solo):**
-
-> Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
-> Eine Umsatzsteuer-Identifikationsnummer nach § 27 a UStG wurde nicht erteilt.
-
-**Variante B — Regelbesteuerung:**
-
-> Umsatzsteuer-Identifikationsnummer nach § 27 a UStG: `<<DE…>>`
+Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
+Eine Umsatzsteuer-Identifikationsnummer nach § 27a UStG wurde nicht erteilt.
 
 ---
 
