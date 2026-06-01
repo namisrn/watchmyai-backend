@@ -27,6 +27,13 @@ watchmyai:
     ttl-days: ${WATCHMYAI_SESSION_TTL_DAYS:30}
   legal:
     contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
+    # Impressum-Daten nach § 5 DDG. Vor Go-Live über ENV setzen (siehe legal/IMPRESSUM.md).
+    # Leerer Default => /impressum lässt die jeweilige Zeile aus, statt einen Platzhalter zu rendern.
+    operator-name: ${WATCHMYAI_LEGAL_OPERATOR_NAME:}
+    operator-address: ${WATCHMYAI_LEGAL_OPERATOR_ADDRESS:}
+    operator-postal-city: ${WATCHMYAI_LEGAL_OPERATOR_POSTAL_CITY:}
+    operator-country: ${WATCHMYAI_LEGAL_OPERATOR_COUNTRY:}
+    vat-id: ${WATCHMYAI_LEGAL_VAT_ID:}
   plan-catalog:
     # Limits & cost-caps tuned for Year-1 profitability under Apple's 30% cut.
     # Worst-case marge after 30% Apple fee:

@@ -4,6 +4,8 @@ import com.watchmyai.ai.AiRequestLogRepository;
 import com.watchmyai.quota.UserPlanRepository;
 import com.watchmyai.quota.UserUsageRepository;
 import com.watchmyai.subscription.AppStoreSubscriptionRepository;
+import com.watchmyai.telemetry.TelemetryEventRepository;
+import com.watchmyai.telemetry.TelemetryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ public class AccountDeletionService {
     private final UserPlanRepository userPlanRepository;
     private final UserSessionRepository userSessionRepository;
     private final AppUserRepository appUserRepository;
+    private final TelemetryEventRepository telemetryEventRepository;
+    private final TelemetryService telemetryService;
 
     public AccountDeletionService(
             AppleSignInTokenRevocationService appleSignInTokenRevocationService,
@@ -29,7 +33,9 @@ public class AccountDeletionService {
             UserUsageRepository userUsageRepository,
             UserPlanRepository userPlanRepository,
             UserSessionRepository userSessionRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            TelemetryEventRepository telemetryEventRepository,
+            TelemetryService telemetryService
     ) {
         this.appleSignInTokenRevocationService = appleSignInTokenRevocationService;
         this.aiRequestLogRepository = aiRequestLogRepository;
@@ -38,6 +44,8 @@ public class AccountDeletionService {
         this.userPlanRepository = userPlanRepository;
         this.userSessionRepository = userSessionRepository;
         this.appUserRepository = appUserRepository;
+        this.telemetryEventRepository = telemetryEventRepository;
+        this.telemetryService = telemetryService;
     }
 
     @Transactional
@@ -47,6 +55,11 @@ public class AccountDeletionService {
         appleSignInTokenRevocationService.revokeAuthorization(authorizationCode);
 
         aiRequestLogRepository.deleteByUserId(userId);
+        // Telemetrie ist über den gehashten user_id_hash gespeichert, nicht über die
+        // rohe userId — wir bilden hier denselben Hash wie beim Schreiben (siehe
+        // TelemetryService) und löschen darüber. Erfüllt Art. 17 DSGVO auch für die
+        // pseudonymisierten Analytics-Events.
+        telemetryEventRepository.deleteByUserIdHash(telemetryService.hashUserIdForDeletion(userId));
         appStoreSubscriptionRepository.deleteByUserId(userId);
         userUsageRepository.deleteByUserId(userId);
         userPlanRepository.deleteByUserId(userId);

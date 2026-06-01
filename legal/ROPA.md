@@ -137,9 +137,19 @@
 
 ---
 
-## 8. Verarbeitungstätigkeit: Produkt-Telemetrie (falls aktiviert)
+## 8. Verarbeitungstätigkeit: Produkt-Telemetrie
 
-> Wird ergänzt, sobald die Telemetrie-Pipeline deployed ist. Aktuell N/A.
+| Feld | Wert |
+|---|---|
+| **Zweck** | Produkt-Analyse (Aktivierung, Funnel, Conversion, Quota-Abbrüche) zur Verbesserung des Dienstes und zur wirtschaftlichen Steuerung |
+| **Rechtsgrundlage** | Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse — Produktverbesserung), abgewogen gegen die Betroffeneninteressen durch Pseudonymisierung, strikte PII-Blocklist und kurze Aufbewahrung. Es werden **keine Inhalte** (Prompts, Antworten, Mail-Adressen, Klarnamen, Tokens) verarbeitet. |
+| **Kategorien Betroffener** | Alle Nutzer der iOS-/Watch-App sowie server-instrumentierte Backend-Events |
+| **Kategorien personenbezogener Daten** | • Pseudonymer `user_id_hash` (SHA-256 der internen User-ID, auf 128 bit gekürzt — ohne separates Mapping nicht re-identifizierbar)<br>• Event-Name (snake_case, validiert)<br>• Plattform, Plan, Locale, App-Version<br>• Event-Properties aus einer Allowlist-Logik (z. B. `model`, `mode`, `throttle_state`, `usage_percent`, `product_id`) — Keys gegen eine PII-Blocklist geprüft, String-Werte auf 256 Zeichen gekürzt |
+| **Speicherort** | PostgreSQL `telemetry_event` bei Hetzner (DE) |
+| **Empfänger** | Keine externen Empfänger (selbst-gehostet, kein PostHog/Grafana/Drittanbieter) |
+| **Drittlandtransfer** | Nein |
+| **Speicherfrist** | **12 Monate** für Roh-Events, danach hartes Löschen via `TelemetryRetentionJob` (täglich 03:45 Europe/Berlin). Aggregierte Auswertungen (per SQL extrahiert) sind anonyme Statistik und nicht mehr personenbezogen. |
+| **TOM** | • User-ID-Hashing vor dem INSERT (`TelemetryService`)<br>• Server-seitige PII-Blocklist + Client-seitiger Mirror (`Telemetry.swift`)<br>• Event-Name-Validierung gegen Regex, String-Cap 256 Zeichen<br>• Account-Löschung (Art. 17) löscht auch Telemetrie über `TelemetryEventRepository.deleteByUserIdHash(...)` (eingebunden in `AccountDeletionService`)<br>• Retention-Job `TelemetryRetentionJob` analog AI-Request-Log<br>• DB-Verschlüsselung at-rest (Hetzner-Standard) |
 
 ---
 

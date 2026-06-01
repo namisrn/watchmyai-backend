@@ -32,6 +32,25 @@ public class LegalPageController {
         ));
     }
 
+    @GetMapping(value = "/impressum", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> impressum() {
+        // Anbieterkennzeichnung nach § 5 DDG. Die konkreten Betreiberdaten kommen
+        // aus der Konfiguration (watchmyai.legal.*) und werden über Umgebungs-
+        // variablen gesetzt. Nicht gesetzte Felder werden ausgelassen statt mit
+        // Platzhaltern gerendert — eine halb ausgefüllte Anbieterkennzeichnung wäre
+        // schlechter als eine schlanke. Inhaltlich identisch zu legal/IMPRESSUM.md.
+        String body = "<h1>Impressum</h1>"
+                + "<p>Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz):</p>"
+                + line(legalProperties.operatorName())
+                + line(legalProperties.operatorAddress())
+                + line(legalProperties.operatorPostalCity())
+                + line(legalProperties.operatorCountry())
+                + "<h2>Kontakt</h2>"
+                + mailto(legalProperties.contactEmail())
+                + labelledLine("USt-IdNr.:", legalProperties.vatId());
+        return ResponseEntity.ok(page("WatchMyAI Impressum", body));
+    }
+
     @GetMapping(value = "/terms", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> terms() {
         String contactEmail = escape(legalProperties.contactEmail());
@@ -68,6 +87,30 @@ public class LegalPageController {
                 """
                 .replace("__TITLE__", escape(title))
                 .replace("__BODY__", body);
+    }
+
+    /** Rendert eine Zeile nur, wenn der Wert gesetzt ist; sonst leer. */
+    private String line(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return "<p>" + escape(value) + "</p>";
+    }
+
+    /** Wie {@link #line(String)}, aber mit vorangestelltem Label (z. B. "USt-IdNr.:"). */
+    private String labelledLine(String label, String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return "<p>" + escape(label) + " " + escape(value) + "</p>";
+    }
+
+    private String mailto(String email) {
+        if (email == null || email.isBlank()) {
+            return "";
+        }
+        String escaped = escape(email);
+        return "<p><a href=\"mailto:" + escaped + "\">" + escaped + "</a></p>";
     }
 
     private String escape(String value) {

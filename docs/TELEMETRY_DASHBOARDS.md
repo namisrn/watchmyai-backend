@@ -280,7 +280,8 @@ SELECT pg_size_pretty(pg_total_relation_size('telemetry_event'));
 
 ## 10. Maintenance-Queries
 
-**Retention manuell** (bis der `TelemetryRetentionJob` deployed ist):
+**Retention manuell** (läuft normalerweise automatisch über `TelemetryRetentionJob`,
+täglich 03:45 Europe/Berlin — diese Query nur als Fallback / Ad-hoc):
 
 ```sql
 DELETE FROM telemetry_event

@@ -24,6 +24,7 @@
 | `subscription_state_changed` | Apple-S2S oder Client-Sync hat Subscription verändert | `backend` | `product_id`, `verification_source`, `notification_type`, `notification_subtype`, `active`, `billing_retry`, `grace_period` | Conversion, Renewal, Refund, Cancel — alles über `notification_type` differenziert |
 | `paywall_viewed` | User öffnet die Paywall-Seite (`IOSPaywallScreen.onAppear`) | `ios` | `source` (`plan_screen` / `quota_nudge` / `limit_reached` …) | Funnel-Top: wie viele kommen überhaupt zur Kasse? |
 | `quota_nudge_shown` | 70%-Banner erscheint im iOS Home | `ios` | `usage_percent` | Mid-Funnel: welche User sehen die Soft-Upsell-Stelle? |
+| `purchase_initiated` | User tappt CTA im iOS-Paywall (`IOSPaywallScreen.purchaseAction`), direkt vor dem StoreKit-Sheet | `ios` | `product_id`, `billing_period` (`monthly`/`yearly`), `source` | Funnel-Boden: Tap → tatsächliche Subscription. Conversion gegen `subscription_state_changed`. |
 
 ---
 
@@ -31,7 +32,6 @@
 
 | Event-Name | Wann | Property-Idee |
 |---|---|---|
-| `purchase_initiated` | User tappt CTA im Paywall, vor StoreKit-Sheet | `product_id`, `source` |
 | `restore_invoked` | User tappt "Restore Purchases" | `source` |
 | `signin_completed` | Apple-Sign-In erfolgreich | `is_first_time` |
 | `app_first_launch` | Erster Start nach Install | `locale` |
@@ -93,13 +93,16 @@ Fehler-Message in eine Property steckt, die zufällig persönliche Daten enthäl
 
 ## 6. Aufbewahrungsdauer
 
-- **Ungefilterte Roh-Events:** 12 Monate (Konfig im `application.yaml`,
-  künftiger `TelemetryRetentionJob` analog `AiRequestLogRetentionJob`).
+- **Ungefilterte Roh-Events:** 12 Monate (= 365 Tage), danach hartes Löschen via
+  `TelemetryRetentionJob` (täglich 03:45 Europe/Berlin, analog `AiRequestLogRetentionJob`).
+  Frist über `watchmyai.retention.telemetry.days` konfigurierbar (Default 365).
 - **Aggregierte Metriken** (per SQL extrahiert nach `docs/TELEMETRY_DASHBOARDS.md`):
   unbegrenzt — sind dann anonyme Statistik, nicht mehr personenbezogen.
 
 Auf Account-Löschung (Art. 17 DSGVO): `TelemetryEventRepository.deleteByUserIdHash(...)`
-wird vom `AccountDeletionService` aufgerufen (zu integrieren — derzeit nicht).
+wird vom `AccountDeletionService` aufgerufen (integriert — der Hash wird über
+`TelemetryService.hashUserIdForDeletion(...)` gebildet, damit derselbe `user_id_hash`
+wie beim Schreiben getroffen wird).
 
 ---
 

@@ -27,8 +27,8 @@ public class ApiSecurityConfig {
                 .logout(logout -> logout.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.GET, "/privacy", "/terms").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/privacy", "/terms").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/privacy", "/terms", "/impressum").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/privacy", "/terms", "/impressum").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple").permitAll()
