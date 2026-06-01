@@ -15,17 +15,16 @@
 **Diensteanbieter / Betreiber**
 
 ```
-<<Vollständiger Vor- und Nachname>>
-<<Straße, Hausnummer>>
-<<PLZ, Ort>>
-<<Land — i.d.R. „Deutschland">>
+Sasan Nami
+Ludwig-Erhard-Straße 31
+59065 Hamm
+Germany
 ```
 
 **Kontakt**
 
 ```
 E-Mail:   support@watchmyai.app
-Telefon:  <<optional — nicht zwingend, aber EU-Verbraucherrichtlinie empfiehlt>>
 ```
 
 **Umsatzsteuer**
@@ -49,9 +48,9 @@ Telefon:  <<optional — nicht zwingend, aber EU-Verbraucherrichtlinie empfiehlt
 > Marketing-Material) bereithält.
 
 ```
-<<Vollständiger Vor- und Nachname>>
-<<Straße, Hausnummer>>
-<<PLZ, Ort>>
+Sasan Nami
+Ludwig-Erhard-Straße 31
+59065 Hamm
 ```
 
 ---
@@ -109,4 +108,4 @@ durch Nutzerinnen und Nutzer ist im Rahmen der Nutzungsbedingungen frei.
 
 ---
 
-**Stand:** <<Datum der nächsten Veröffentlichung — bei jeder Änderung aktualisieren>>
+**Stand:** 2026-06-01

@@ -29,10 +29,10 @@ watchmyai:
     contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
     # Impressum-Daten nach § 5 DDG. Vor Go-Live über ENV setzen (siehe legal/IMPRESSUM.md).
     # Leerer Default => /impressum lässt die jeweilige Zeile aus, statt einen Platzhalter zu rendern.
-    operator-name: ${WATCHMYAI_LEGAL_OPERATOR_NAME:}
-    operator-address: ${WATCHMYAI_LEGAL_OPERATOR_ADDRESS:}
-    operator-postal-city: ${WATCHMYAI_LEGAL_OPERATOR_POSTAL_CITY:}
-    operator-country: ${WATCHMYAI_LEGAL_OPERATOR_COUNTRY:}
+    operator-name: ${WATCHMYAI_LEGAL_OPERATOR_NAME:Sasan Nami}
+    operator-address: ${WATCHMYAI_LEGAL_OPERATOR_ADDRESS:Ludwig-Erhard-Straße 31}
+    operator-postal-city: ${WATCHMYAI_LEGAL_OPERATOR_POSTAL_CITY:59065 Hamm}
+    operator-country: ${WATCHMYAI_LEGAL_OPERATOR_COUNTRY:Germany}
     vat-id: ${WATCHMYAI_LEGAL_VAT_ID:}
   plan-catalog:
     # Limits & cost-caps tuned for Year-1 profitability under Apple's 30% cut.

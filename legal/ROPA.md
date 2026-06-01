@@ -210,6 +210,6 @@ Bei jeder Änderung Datum unten erhöhen.
 
 ---
 
-**Stand:** <<Datum bei Inbetriebnahme + bei jeder Änderung>>
+**Stand:** 2026-06-01
 **Verantwortlich:** Siehe `IMPRESSUM.md`
 **Aufsichtsbehörde-Anfrage:** Diese Datei + `AVV_CHECKLIST.md` + `DPIA.md` als ZIP bereitstellen

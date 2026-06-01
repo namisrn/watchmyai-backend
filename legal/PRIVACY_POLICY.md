@@ -4,7 +4,7 @@
 > DSGVO** und § 5 TMG für deutsche Nutzer. Sie wird in der App und über die
 > URL `https://api.watchmyai.app/privacy` bereitgestellt.
 >
-> **Letzte Aktualisierung:** <<Datum bei Veröffentlichung>>
+> **Letzte Aktualisierung:** 2026-06-01
 > **Sprachen:** Deutsch (verbindlich), Englisch (Übersetzung — siehe unten)
 
 ---
@@ -14,10 +14,10 @@
 Verantwortlicher i.S.d. Art. 4 Nr. 7 DSGVO ist:
 
 ```
-<<Vollständiger Name>>
-<<Straße und Hausnummer>>
-<<PLZ und Ort>>
-<<Land>>
+Sasan Nami
+Ludwig-Erhard-Straße 31
+59065 Hamm
+Germany
 
 E-Mail: support@watchmyai.app
 ```
@@ -323,8 +323,8 @@ Substanzielle Änderungen (z.B. neuer Subprozessor) werden:
 - In der App beim nächsten Start mit einem Hinweis kommuniziert
 - Mit mindestens **30 Tagen** Vorlaufzeit vor dem Wechsel angekündigt
 
-**Aktuelle Version:** <<Versionsnummer, z.B. 2.0>>
-**Stand:** <<Datum bei Veröffentlichung>>
+**Aktuelle Version:** 1.0
+**Stand:** 2026-06-01
 **Vorgängerversionen** sind auf Anfrage erhältlich.
 
 ---
