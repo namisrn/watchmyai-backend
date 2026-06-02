@@ -1,4 +1,12 @@
 server:
+  # Hinter Caddy (Reverse-Proxy): X-Forwarded-For auswerten, damit
+  # request.getRemoteAddr() die echte Client-IP liefert statt der Proxy-IP.
+  # Ohne das kollabieren die IP-basierten Rate-Limits (ApiRateLimitFilter, v.a.
+  # /auth/apple) zu EINEM globalen Bucket. "native" = Tomcat RemoteIpValve, das
+  # per Default nur internen/Loopback-Proxies vertraut — ein direkt verbundener
+  # Public-Client kann sein X-Forwarded-For also NICHT fälschen (wird ignoriert,
+  # weil sein Peer keine interne IP ist). Voraussetzung: Caddy setzt XFF (Default).
+  forward-headers-strategy: native
   tomcat:
     max-http-form-post-size: 65536
     max-swallow-size: 65536

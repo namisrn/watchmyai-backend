@@ -136,6 +136,7 @@ public class SubscriptionTransactionService {
             );
         } catch (RuntimeException telemetryException) {
             // Telemetrie darf den Subscription-Sync nicht abbrechen.
+            log.warn("Telemetry record failed event=subscription_state_changed reason={}", telemetryException.getMessage());
         }
 
         return buildActiveStatus(userId, resultingPlan);
