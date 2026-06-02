@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Job-based AI request handling. {@code POST /ai/ask} reserves quota synchronously and then
@@ -152,7 +153,33 @@ public class AiService {
         }
 
         Long logId = requestLog.getId();
-        aiJobExecutor.execute(() -> processJob(request, userId, currentPlan, logId));
+        try {
+            aiJobExecutor.execute(() -> processJob(request, userId, currentPlan, logId));
+        } catch (RejectedExecutionException rejected) {
+            usageService.refundRequest(userId, currentPlan);
+            QuotaCheckResult quota = quotaService.checkQuota(userId, currentPlan);
+            log.warn(
+                    "AI job rejected by saturated executor userId={} logId={} clientRequestId={}",
+                    userId,
+                    logId,
+                    request.clientRequestId(),
+                    rejected
+            );
+            AskAIResponse failed = new AskAIResponse(
+                    AskAIResponse.STATUS_FAILED,
+                    AiUserFacingMessages.SERVICE_BUSY,
+                    "none",
+                    currentPlan,
+                    false,
+                    quota.remainingRequests(),
+                    quota.monthlyUsagePercent(),
+                    quota.estimatedMonthlyCostEur(),
+                    quota.monthlyCostCapEur(),
+                    quota.throttleState().toApiValue()
+            );
+            completeRequestLog(requestLog, failed, 0, 0, BigDecimal.ZERO);
+            return failed;
+        }
         return acceptedResponse(currentPlan);
     }
 

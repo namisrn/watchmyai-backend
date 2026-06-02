@@ -1,6 +1,9 @@
 package com.watchmyai.quota;
 
 import com.watchmyai.subscription.SubscriptionStatusService;
+import com.watchmyai.user.UserContextService;
+import com.watchmyai.user.UserIdentity;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -29,6 +32,15 @@ class QuotaControllerTest {
 
     @MockitoBean
     private SubscriptionStatusService subscriptionStatusService;
+
+    @MockitoBean
+    private UserContextService userContextService;
+
+    @BeforeEach
+    void authenticateRequest() {
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity("apple:test-user"));
+    }
 
     @Test
     void statusReturnsCurrentQuotaWithoutInternalLimits() throws Exception {

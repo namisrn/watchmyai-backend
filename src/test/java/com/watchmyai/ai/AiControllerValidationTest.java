@@ -2,6 +2,9 @@ package com.watchmyai.ai;
 
 import com.watchmyai.common.api.GlobalExceptionHandler;
 import com.watchmyai.quota.PlanType;
+import com.watchmyai.user.UserContextService;
+import com.watchmyai.user.UserIdentity;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -28,6 +31,15 @@ class AiControllerValidationTest {
 
     @MockitoBean
     private AiService aiService;
+
+    @MockitoBean
+    private UserContextService userContextService;
+
+    @BeforeEach
+    void authenticateRequest() {
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity("apple:test-user"));
+    }
 
     @Test
     void askReturnsOkForValidRequest() throws Exception {

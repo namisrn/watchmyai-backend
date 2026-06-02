@@ -1,6 +1,9 @@
 package com.watchmyai.subscription;
 
 import com.watchmyai.quota.PlanType;
+import com.watchmyai.user.UserContextService;
+import com.watchmyai.user.UserIdentity;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -26,6 +29,15 @@ class SubscriptionControllerTest {
 
     @MockitoBean
     private SubscriptionSyncService subscriptionSyncService;
+
+    @MockitoBean
+    private UserContextService userContextService;
+
+    @BeforeEach
+    void authenticateRequest() {
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity("apple:test-user"));
+    }
 
     @Test
     void statusReturnsCurrentSubscription() throws Exception {

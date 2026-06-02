@@ -19,6 +19,49 @@ public interface UserUsageRepository extends JpaRepository<UserUsageEntity, Long
     void deleteByUserId(String userId);
 
     /**
+     * Idempotently creates the current-period usage row. The first request for a fresh
+     * account can arrive concurrently from iPhone + Watch; `ON CONFLICT DO NOTHING`
+     * lets one insert win without poisoning the surrounding transaction for the loser.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO user_usage (
+                user_id,
+                plan_type,
+                period_year_month,
+                period_day,
+                used_lifetime_requests,
+                used_daily_requests,
+                used_monthly_requests,
+                used_premium_requests,
+                estimated_monthly_cost_eur,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                :userId,
+                :planType,
+                :periodYearMonth,
+                :periodDay,
+                0,
+                0,
+                0,
+                0,
+                0,
+                :now,
+                :now
+            )
+            ON CONFLICT (user_id, period_year_month) DO NOTHING
+            """, nativeQuery = true)
+    int insertUsageIfMissing(
+            @Param("userId") String userId,
+            @Param("planType") String planType,
+            @Param("periodYearMonth") String periodYearMonth,
+            @Param("periodDay") String periodDay,
+            @Param("now") Instant now
+    );
+
+    /**
      * Atomically reserves one request slot. The conditional UPDATE only increments the
      * counters when every limit is still satisfied, so concurrent callers cannot both pass
      * a stale check-then-act window. Returns the number of affected rows: 1 when the slot

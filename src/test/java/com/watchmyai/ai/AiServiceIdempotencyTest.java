@@ -18,6 +18,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -159,6 +160,45 @@ class AiServiceIdempotencyTest {
         verify(openAiClient).ask("gpt-5.4-mini", "system prompt", "Hallo", 180);
         verify(usageService).finalizeRequest(USER_ID, PlanType.FREE, new BigDecimal("0.000020"));
         verify(usageService, never()).refundRequest(any(), any());
+        verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
+    }
+
+    @Test
+    void askRefundsAndMarksFailedWhenWorkerQueueIsFull() {
+        Executor rejectingExecutor = command -> {
+            throw new RejectedExecutionException("queue full");
+        };
+        UserContextService userContextService = mock(UserContextService.class);
+        when(userContextService.getCurrentUser())
+                .thenReturn(new UserIdentity(USER_ID));
+        aiService = new AiService(
+                modelRouter,
+                promptBuilder,
+                openAiClient,
+                quotaService,
+                usageService,
+                userPlanService,
+                costEstimatorService,
+                aiRequestLogRepository,
+                userContextService,
+                rejectingExecutor,
+                new SimpleMeterRegistry(),
+                mock(com.watchmyai.telemetry.TelemetryService.class)
+        );
+
+        AskAIRequest request = validRequest();
+        when(aiRequestLogRepository.findByUserIdAndClientRequestId(USER_ID, CLIENT_REQUEST_ID))
+                .thenReturn(Optional.empty());
+        when(userPlanService.getCurrentPlan()).thenReturn(PlanType.FREE);
+        when(usageService.reserveRequest(USER_ID, PlanType.FREE)).thenReturn(true);
+        when(quotaService.checkQuota(USER_ID, PlanType.FREE)).thenReturn(quotaResult(true, 15, 25));
+
+        AskAIResponse response = aiService.ask(request);
+
+        assertThat(response.status()).isEqualTo(AskAIResponse.STATUS_FAILED);
+        assertThat(response.answer()).isEqualTo(AiUserFacingMessages.SERVICE_BUSY);
+        verify(usageService).refundRequest(USER_ID, PlanType.FREE);
+        verifyNoInteractions(modelRouter, promptBuilder, openAiClient, costEstimatorService);
         verify(aiRequestLogRepository).save(any(AiRequestLogEntity.class));
     }
 

@@ -13,9 +13,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,10 +65,8 @@ class UsageServiceTest {
         );
 
         when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
-                .thenReturn(Optional.empty());
-
-        when(userUsageRepository.save(any(UserUsageEntity.class)))
-                .thenReturn(createdUsage);
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(createdUsage));
 
         UsageSnapshot snapshot = usageService.getCurrentUsage();
 
@@ -76,8 +76,45 @@ class UsageServiceTest {
         assertThat(snapshot.usedPremiumRequests()).isZero();
         assertThat(snapshot.estimatedMonthlyCostEur()).isEqualByComparingTo(BigDecimal.ZERO);
 
-        verify(userUsageRepository).findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD);
-        verify(userUsageRepository).save(any(UserUsageEntity.class));
+        verify(userUsageRepository, times(2)).findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD);
+        verify(userUsageRepository).insertUsageIfMissing(
+                eq(TEST_USER_ID),
+                eq("FREE"),
+                eq(CURRENT_PERIOD),
+                eq("2026-04-15"),
+                any(Instant.class)
+        );
+    }
+
+    @Test
+    void getCurrentUsageHandlesConcurrentFirstCreate() {
+        UserUsageEntity concurrentlyCreatedUsage = new UserUsageEntity(
+                TEST_USER_ID,
+                PlanType.FREE,
+                CURRENT_PERIOD,
+                "2026-04-15"
+        );
+        when(userUsageRepository.findByUserIdAndPeriodYearMonth(TEST_USER_ID, CURRENT_PERIOD))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(concurrentlyCreatedUsage));
+        when(userUsageRepository.insertUsageIfMissing(
+                eq(TEST_USER_ID),
+                eq("FREE"),
+                eq(CURRENT_PERIOD),
+                eq("2026-04-15"),
+                any(Instant.class)
+        )).thenReturn(0);
+
+        UsageSnapshot snapshot = usageService.getCurrentUsage();
+
+        assertThat(snapshot.usedMonthlyRequests()).isZero();
+        verify(userUsageRepository).insertUsageIfMissing(
+                eq(TEST_USER_ID),
+                eq("FREE"),
+                eq(CURRENT_PERIOD),
+                eq("2026-04-15"),
+                any(Instant.class)
+        );
     }
 
     @Test
@@ -109,7 +146,8 @@ class UsageServiceTest {
                 .thenReturn(Optional.of(existingUsage));
         when(planConfigService.getLimits(PlanType.FREE)).thenReturn(FREE_LIMITS);
         when(userUsageRepository.reserveSlot(
-                any(), any(), any(), anyInt(), anyInt(), anyInt(), anyInt(), any(), any()
+                anyString(), anyString(), any(PlanType.class), anyInt(), anyInt(), anyInt(), anyInt(),
+                any(BigDecimal.class), any(Instant.class)
         )).thenReturn(0);
 
         boolean reserved = usageService.reserveRequest(PlanType.FREE);
@@ -139,7 +177,7 @@ class UsageServiceTest {
     void finalizeRequestRecordsCost() {
         usageService.finalizeRequest(PlanType.PRO, new BigDecimal("0.020000"));
 
-        // Premium accounting now happens at reservation time (reservePremium), not at finalize —
+        // Premium accounting now happens at reservation time (reservePremium), not at finalize -
         // finalizeCost only records the actual EUR cost.
         verify(userUsageRepository).finalizeCost(
                 eq(TEST_USER_ID), eq(CURRENT_PERIOD),

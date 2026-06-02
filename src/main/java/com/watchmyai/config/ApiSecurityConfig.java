@@ -1,18 +1,30 @@
 package com.watchmyai.config;
 
+import com.watchmyai.common.api.ApiAuthenticationFilter;
+import com.watchmyai.user.UserContextService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 public class ApiSecurityConfig {
 
     @Bean
-    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+    ApiAuthenticationFilter apiAuthenticationFilter(ObjectProvider<UserContextService> userContextServiceProvider) {
+        return new ApiAuthenticationFilter(userContextServiceProvider);
+    }
+
+    @Bean
+    SecurityFilterChain apiSecurityFilterChain(
+            HttpSecurity http,
+            ApiAuthenticationFilter apiAuthenticationFilter
+    ) throws Exception {
         http
                 // CSRF protection is intentionally disabled: this service is a stateless REST
                 // API consumed only by native iOS/watchOS clients via opaque bearer tokens
@@ -26,17 +38,18 @@ public class ApiSecurityConfig {
                 .formLogin(formLogin -> formLogin.disable())
                 .logout(logout -> logout.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(apiAuthenticationFilter, AuthorizationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/privacy", "/terms", "/impressum").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/privacy", "/terms", "/impressum").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple/notifications").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/app-store/notifications").permitAll()
-                        // Bearer/session validation remains centralized in UserContextService so
-                        // controllers keep their existing dev/test and opaque-session behavior.
-                        .requestMatchers("/api/v1/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/telemetry/events").permitAll()
+                        .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().denyAll()
                 );
 

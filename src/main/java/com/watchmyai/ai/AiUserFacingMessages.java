@@ -27,6 +27,9 @@ public final class AiUserFacingMessages {
     /** Returned in the catch block when an unrecognised exception interrupts the AI call. */
     public static final String PROCESSING_FAILED = "Your request could not be processed.";
 
+    /** Returned when the bounded AI worker pool is saturated before the job can start. */
+    public static final String SERVICE_BUSY = "The service is busy. Please try again shortly.";
+
     /** Returned alongside `status=blocked` when the quota gate rejects the request. */
     public static final String LIMIT_REACHED =
             "Your current limit has been reached. Please upgrade or try again later.";

@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Optional;
 
 @Service
 public class UsageService {
@@ -181,16 +182,27 @@ public class UsageService {
         String periodYearMonth = getCurrentPeriodYearMonth();
         String periodDay = getCurrentPeriodDay();
 
+        Optional<UserUsageEntity> existingUsage = userUsageRepository
+                .findByUserIdAndPeriodYearMonth(userId, periodYearMonth)
+                .map(usage -> resetDailyUsageIfNeeded(usage, periodDay));
+        if (existingUsage.isPresent()) {
+            return existingUsage.get();
+        }
+
+        userUsageRepository.insertUsageIfMissing(
+                userId,
+                planType.name(),
+                periodYearMonth,
+                periodDay,
+                Instant.now(clock)
+        );
+
         return userUsageRepository
                 .findByUserIdAndPeriodYearMonth(userId, periodYearMonth)
                 .map(usage -> resetDailyUsageIfNeeded(usage, periodDay))
-                .orElseGet(() -> createUsage(userId, planType, periodYearMonth, periodDay));
-    }
-
-    private UserUsageEntity createUsage(String userId, PlanType planType, String periodYearMonth, String periodDay) {
-        return userUsageRepository.save(
-                new UserUsageEntity(userId, planType, periodYearMonth, periodDay)
-        );
+                .orElseThrow(() -> new IllegalStateException(
+                        "Usage row could not be created for user " + userId + " in period " + periodYearMonth
+                ));
     }
 
     private UserUsageEntity resetDailyUsageIfNeeded(UserUsageEntity usage, String periodDay) {
