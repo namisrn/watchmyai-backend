@@ -16,7 +16,11 @@ public record SubscriptionStatusResponse(
         Instant expiresAt,
         Instant revokedAt,
         String entitlementStatus,
-        UUID appAccountToken
+        UUID appAccountToken,
+        // Plan NACH dem aktuellen expiresAt, abgeleitet aus der Renewal-Info:
+        // FREE = läuft aus, PLUS/PRO = verlängert sich (gleicher Plan oder Wechsel),
+        // null = noch unbekannt (keine S2S-Renewal-Info). Steuert die "danach …"-Anzeige.
+        PlanType nextPlanType
 ) {
     public SubscriptionStatusResponse(PlanType planType, String productId, boolean verified) {
         this(
@@ -30,6 +34,7 @@ public record SubscriptionStatusResponse(
                 null,
                 null,
                 verified ? "ACTIVE" : "UNKNOWN",
+                null,
                 null
         );
     }
@@ -54,6 +59,7 @@ public record SubscriptionStatusResponse(
                 null,
                 null,
                 verified ? "ACTIVE" : "UNKNOWN",
+                null,
                 null
         );
     }

@@ -25,5 +25,10 @@ record SubscriptionUpdatePayload(
         String verificationSource,
         String lastNotificationType,
         String lastNotificationSubtype,
-        Instant lastVerifiedAt
+        Instant lastVerifiedAt,
+        // Renewal-Info aus der S2S-Notification; null = unbekannt (z. B. Client-Sync
+        // ohne Renewal-JWS). Bei null lässt die Entity die bestehenden Werte stehen,
+        // damit ein Client-Sync die per Notification gesetzte Info nicht überschreibt.
+        Boolean autoRenewStatus,
+        String autoRenewProductId
 ) {}

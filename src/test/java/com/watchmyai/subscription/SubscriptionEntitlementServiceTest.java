@@ -29,11 +29,13 @@ class SubscriptionEntitlementServiceTest {
     private final SubscriptionTransactionService transactionService = mock(SubscriptionTransactionService.class);
     private final UserContextService userContextService = mock(UserContextService.class);
     private final AppUserService appUserService = mock(AppUserService.class);
+    private final AppStoreServerService appStoreServerService = mock(AppStoreServerService.class);
     private final Environment environment = mock(Environment.class);
     private final SubscriptionEntitlementService service = new SubscriptionEntitlementService(
             transactionService,
             userContextService,
             appUserService,
+            appStoreServerService,
             environment
     );
 
@@ -47,7 +49,7 @@ class SubscriptionEntitlementServiceTest {
         );
         when(userContextService.getCurrentUser()).thenReturn(new UserIdentity(USER_ID, USER_TOKEN.toString()));
         when(transactionService.findByOriginalTransactionId(ORIGINAL_TRANSACTION_ID)).thenReturn(Optional.empty());
-        when(transactionService.processTransaction(USER_ID, payload, "app_store_server_library", null, null, null))
+        when(transactionService.processTransaction(USER_ID, payload, "app_store_server_library", null, null, null, null, null))
                 .thenReturn(expected);
 
         SubscriptionStatusResponse response = service.syncFromClient(
@@ -72,7 +74,7 @@ class SubscriptionEntitlementServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("App Store transaction is not associated with the authenticated account.");
 
-        verify(transactionService, never()).processTransaction(anyString(), any(), anyString(), any(), any(), any());
+        verify(transactionService, never()).processTransaction(anyString(), any(), anyString(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -101,7 +103,7 @@ class SubscriptionEntitlementServiceTest {
         );
         when(userContextService.getCurrentUser()).thenReturn(new UserIdentity(USER_ID, USER_TOKEN.toString()));
         when(transactionService.findByOriginalTransactionId(ORIGINAL_TRANSACTION_ID)).thenReturn(Optional.of(existing));
-        when(transactionService.processTransaction(USER_ID, payload, "app_store_server_library", null, null, null))
+        when(transactionService.processTransaction(USER_ID, payload, "app_store_server_library", null, null, null, null, null))
                 .thenReturn(expected);
 
         SubscriptionStatusResponse response = service.syncFromClient(

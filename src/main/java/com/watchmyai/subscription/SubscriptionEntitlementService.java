@@ -23,17 +23,20 @@ public class SubscriptionEntitlementService {
     private final SubscriptionTransactionService transactionService;
     private final UserContextService userContextService;
     private final AppUserService appUserService;
+    private final AppStoreServerService appStoreServerService;
     private final Environment environment;
 
     public SubscriptionEntitlementService(
             SubscriptionTransactionService transactionService,
             UserContextService userContextService,
             AppUserService appUserService,
+            AppStoreServerService appStoreServerService,
             Environment environment
     ) {
         this.transactionService = transactionService;
         this.userContextService = userContextService;
         this.appUserService = appUserService;
+        this.appStoreServerService = appStoreServerService;
         this.environment = environment;
     }
 
@@ -47,10 +50,15 @@ public class SubscriptionEntitlementService {
 
         if (verificationResult.verified()) {
             validateClientEntitlementOwner(currentUser, verificationResult.payload());
+            // Client-Sync trägt keine signierte Renewal-Info → null/null. Die
+            // konditionale Entity-Merge-Logik bewahrt eine zuvor per S2S-Notification
+            // gesetzte Renewal-Info, statt sie mit null zu überschreiben.
             return transactionService.processTransaction(
                     userId,
                     verificationResult.payload(),
                     verificationResult.verificationSource(),
+                    null,
+                    null,
                     null,
                     null,
                     null
@@ -76,6 +84,11 @@ public class SubscriptionEntitlementService {
         if (payload == null || transaction == null) {
             return new AppStoreNotificationResponse(true, "jws_shape_only");
         }
+
+        // Renewal-Info (auto-renew Status + nächste Produkt-ID) aus der Notification.
+        // Best-effort: bleibt null/null, wenn die Notification keine Renewal-Info trägt
+        // oder die Verifikation fehlschlägt — die Plan-Aktualisierung läuft trotzdem.
+        RenewalInfo renewal = extractRenewalInfo(payload);
 
         String originalTransactionId = transaction.getOriginalTransactionId();
         Optional<AppStoreSubscriptionEntity> existing = transactionService
@@ -106,7 +119,9 @@ public class SubscriptionEntitlementService {
                                 "app_store_server_notification",
                                 notificationType(payload),
                                 notificationSubtype(payload),
-                                payload.getData() == null ? null : payload.getData().getStatus()
+                                payload.getData() == null ? null : payload.getData().getStatus(),
+                                renewal.autoRenewStatus(),
+                                renewal.autoRenewProductId()
                         );
                         return new AppStoreNotificationResponse(true, "plan_updated_by_app_account_token");
                     })
@@ -131,7 +146,9 @@ public class SubscriptionEntitlementService {
                 "app_store_server_notification",
                 notificationType(payload),
                 notificationSubtype(payload),
-                payload.getData() == null ? null : payload.getData().getStatus()
+                payload.getData() == null ? null : payload.getData().getStatus(),
+                renewal.autoRenewStatus(),
+                renewal.autoRenewProductId()
         );
 
         return new AppStoreNotificationResponse(true, "plan_updated");
@@ -192,5 +209,29 @@ public class SubscriptionEntitlementService {
     private boolean isDevelopmentProfile() {
         return Arrays.asList(environment.getActiveProfiles()).contains("dev")
                 || Arrays.asList(environment.getActiveProfiles()).contains("test");
+    }
+
+    /**
+     * Extrahiert auto-renew Status + nächste Produkt-ID aus der signierten Renewal-Info
+     * der Notification. Verifikation läuft in {@link AppStoreServerService#decodeRenewalInfo};
+     * jeder Fehlschlag degradiert zu „unbekannt" (null/null), damit die Plan-Aktualisierung
+     * niemals an fehlender/ungültiger Renewal-Info scheitert.
+     */
+    private RenewalInfo extractRenewalInfo(ResponseBodyV2DecodedPayload payload) {
+        if (payload.getData() == null || payload.getData().getSignedRenewalInfo() == null) {
+            return RenewalInfo.unknown();
+        }
+        return appStoreServerService.decodeRenewalInfo(payload.getData().getSignedRenewalInfo())
+                .map(info -> new RenewalInfo(
+                        info.getRawAutoRenewStatus() == null ? null : info.getRawAutoRenewStatus() == 1,
+                        info.getAutoRenewProductId()
+                ))
+                .orElse(RenewalInfo.unknown());
+    }
+
+    private record RenewalInfo(Boolean autoRenewStatus, String autoRenewProductId) {
+        static RenewalInfo unknown() {
+            return new RenewalInfo(null, null);
+        }
     }
 }

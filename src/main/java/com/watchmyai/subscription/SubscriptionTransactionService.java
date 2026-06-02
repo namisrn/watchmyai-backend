@@ -70,7 +70,9 @@ public class SubscriptionTransactionService {
             String verificationSource,
             String notificationType,
             String notificationSubtype,
-            Status appStoreStatus
+            Status appStoreStatus,
+            Boolean autoRenewStatus,
+            String autoRenewProductId
     ) {
         String productId = payload.getProductId();
         PlanType planType = productCatalog
@@ -105,7 +107,9 @@ public class SubscriptionTransactionService {
                 verificationSource,
                 notificationType,
                 notificationSubtype,
-                now
+                now,
+                autoRenewStatus,
+                autoRenewProductId
         );
         persistSubscription(userId, originalTransactionId, subscription -> subscription.update(update));
 
@@ -174,7 +178,9 @@ public class SubscriptionTransactionService {
                 verificationSource,
                 null,
                 null,
-                now
+                now,
+                null,
+                null
         );
         persistSubscription(userId, request.originalTransactionId(), subscription -> subscription.update(update));
 
@@ -256,8 +262,32 @@ public class SubscriptionTransactionService {
                 subscription.getExpiresAt(),
                 subscription.getRevokedAt(),
                 subscription.getStatus(),
-                subscription.getAppAccountToken()
+                subscription.getAppAccountToken(),
+                deriveNextPlanType(subscription)
         );
+    }
+
+    /**
+     * Plan, in den das Abo nach dem aktuellen {@code expiresAt} übergeht — abgeleitet
+     * aus der per S2S-Notification gespeicherten Renewal-Info:
+     * <ul>
+     *   <li>{@code autoRenewStatus == null} → null (noch unbekannt; FE zeigt neutral „aktiv bis …")</li>
+     *   <li>{@code false} → {@link PlanType#FREE} (gekündigt, läuft aus)</li>
+     *   <li>{@code true} → Plan von {@code autoRenewProductId} (gleicher Plan ODER geplanter Wechsel),
+     *       Fallback = aktueller Plan, falls die Produkt-ID (noch) nicht im Katalog ist</li>
+     * </ul>
+     */
+    private PlanType deriveNextPlanType(AppStoreSubscriptionEntity subscription) {
+        Boolean autoRenew = subscription.getAutoRenewStatus();
+        if (autoRenew == null) {
+            return null;
+        }
+        if (!autoRenew) {
+            return PlanType.FREE;
+        }
+        return productCatalog
+                .findPlanType(subscription.getAutoRenewProductId())
+                .orElse(subscription.getPlanType());
     }
 
     private void persistSubscription(

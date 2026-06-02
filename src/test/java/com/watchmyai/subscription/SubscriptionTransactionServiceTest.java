@@ -160,7 +160,8 @@ class SubscriptionTransactionServiceTest {
                 "tx-" + originalTransactionId, "product." + planType.name().toLowerCase(), planType,
                 "sandbox", null, "ACTIVE", true,
                 null, null, null, false, false,
-                "app_store_server_library", null, null, Instant.now(clock)
+                "app_store_server_library", null, null, Instant.now(clock),
+                null, null
         ));
         return entity;
     }
@@ -173,7 +174,8 @@ class SubscriptionTransactionServiceTest {
                 transactionId, "product." + planType.name().toLowerCase(), planType,
                 "sandbox", null, "ACTIVE", true,
                 null, null, null, false, false,
-                "app_store_server_library", null, null, updatedAt
+                "app_store_server_library", null, null, updatedAt,
+                null, null
         ));
         return entity;
     }
@@ -183,7 +185,8 @@ class SubscriptionTransactionServiceTest {
                 transactionId, "product." + planType.name().toLowerCase(), planType,
                 "sandbox", null, "ACTIVE", true,
                 expiresAt, null, null, false, false,
-                "app_store_server_library", null, null, Instant.now(clock)
+                "app_store_server_library", null, null, Instant.now(clock),
+                null, null
         );
     }
 }

@@ -58,6 +58,15 @@ public class AppStoreSubscriptionEntity {
     @Column(name = "billing_retry", nullable = false)
     private boolean billingRetry;
 
+    // Renewal-Info aus Apples S2S-Notification. null = unbekannt (noch keine
+    // Notification). false = läuft aus (danach Free). true = verlängert sich zu
+    // autoRenewProductId's Plan.
+    @Column(name = "auto_renew_status")
+    private Boolean autoRenewStatus;
+
+    @Column(name = "auto_renew_product_id")
+    private String autoRenewProductId;
+
     @Column(name = "verification_source", nullable = false)
     private String verificationSource;
 
@@ -152,6 +161,14 @@ public class AppStoreSubscriptionEntity {
         return verificationSource;
     }
 
+    public Boolean getAutoRenewStatus() {
+        return autoRenewStatus;
+    }
+
+    public String getAutoRenewProductId() {
+        return autoRenewProductId;
+    }
+
     public void update(SubscriptionUpdatePayload p) {
         this.transactionId = p.transactionId();
         this.productId = p.productId();
@@ -169,6 +186,14 @@ public class AppStoreSubscriptionEntity {
         this.lastNotificationType = p.lastNotificationType();
         this.lastNotificationSubtype = p.lastNotificationSubtype();
         this.lastVerifiedAt = p.lastVerifiedAt();
+        // Konditional: ein Client-Sync ohne Renewal-JWS liefert null und darf die
+        // per S2S-Notification gesetzte Renewal-Info NICHT überschreiben.
+        if (p.autoRenewStatus() != null) {
+            this.autoRenewStatus = p.autoRenewStatus();
+        }
+        if (p.autoRenewProductId() != null) {
+            this.autoRenewProductId = p.autoRenewProductId();
+        }
     }
 
     public void deactivate(String status, Instant lastVerifiedAt) {

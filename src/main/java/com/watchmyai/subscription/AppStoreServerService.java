@@ -2,6 +2,7 @@ package com.watchmyai.subscription;
 
 import com.apple.itunes.storekit.model.Data;
 import com.apple.itunes.storekit.model.Environment;
+import com.apple.itunes.storekit.model.JWSRenewalInfoDecodedPayload;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
 import com.apple.itunes.storekit.verification.SignedDataVerifier;
@@ -61,6 +62,31 @@ public class AppStoreServerService {
         }
 
         return payload;
+    }
+
+    /**
+     * Verifies + decodes the signed renewal info carried in an S2S notification
+     * ({@code data.signedRenewalInfo}). Best-effort: returns empty when verification
+     * isn't configured or the JWS can't be verified — renewal info is display
+     * metadata (auto-renew status / next product), never a hard entitlement gate, so
+     * it must never break notification processing.
+     */
+    public Optional<JWSRenewalInfoDecodedPayload> decodeRenewalInfo(String signedRenewalInfo) {
+        if (signedRenewalInfo == null || signedRenewalInfo.isBlank() || signedDataVerifier == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(signedDataVerifier.verifyAndDecodeRenewalInfo(signedRenewalInfo));
+        } catch (VerificationException primary) {
+            if (sandboxSignedDataVerifier != null && sandboxSignedDataVerifier != signedDataVerifier) {
+                try {
+                    return Optional.of(sandboxSignedDataVerifier.verifyAndDecodeRenewalInfo(signedRenewalInfo));
+                } catch (VerificationException ignored) {
+                    // Fall through to empty — best-effort.
+                }
+            }
+            return Optional.empty();
+        }
     }
 
     public VerificationResult verifyClientTransactionPayload(String signedTransactionInfo) {
