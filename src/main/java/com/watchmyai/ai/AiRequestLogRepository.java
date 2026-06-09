@@ -17,6 +17,11 @@ public interface AiRequestLogRepository extends JpaRepository<AiRequestLogEntity
 
     void deleteByUserId(String userId);
 
+    /** Guest→account migration: repoint a guest's AI request log onto the account user id. */
+    @Modifying
+    @Query(value = "UPDATE ai_request_log SET user_id = :accountUserId WHERE user_id = :guestUserId", nativeQuery = true)
+    int reassignUser(@Param("guestUserId") String guestUserId, @Param("accountUserId") String accountUserId);
+
     /**
      * Retention purge for {@code ai_request_log.answer}. Sets the column to NULL
      * for every row whose {@code created_at} is older than {@code threshold} and

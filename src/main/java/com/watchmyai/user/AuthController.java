@@ -18,19 +18,22 @@ public class AuthController {
     private final AppUserService appUserService;
     private final AppSessionService appSessionService;
     private final AccountDeletionService accountDeletionService;
+    private final GuestMigrationService guestMigrationService;
 
     public AuthController(
             UserContextService userContextService,
             AppleIdentityTokenVerifier appleIdentityTokenVerifier,
             AppUserService appUserService,
             AppSessionService appSessionService,
-            AccountDeletionService accountDeletionService
+            AccountDeletionService accountDeletionService,
+            GuestMigrationService guestMigrationService
     ) {
         this.userContextService = userContextService;
         this.appleIdentityTokenVerifier = appleIdentityTokenVerifier;
         this.appUserService = appUserService;
         this.appSessionService = appSessionService;
         this.accountDeletionService = accountDeletionService;
+        this.guestMigrationService = guestMigrationService;
     }
 
     @GetMapping("/status")
@@ -42,6 +45,17 @@ public class AuthController {
     public AuthSessionResponse apple(@Valid @RequestBody AppleAuthRequest request) {
         AppleUserIdentity appleUser = appleIdentityTokenVerifier.verify(request.identityToken(), request.nonce());
         AppUserEntity appUser = appUserService.findOrCreateAppleUser(appleUser, request.appleUserId());
+
+        // If this device was using a guest session before signing in, migrate everything it
+        // accumulated (usage, subscription, history) onto the account, then let the new account
+        // session supersede the guest one. resolveIdentity validates the guest token first.
+        String guestSessionToken = request.guestSessionToken();
+        if (guestSessionToken != null && !guestSessionToken.isBlank()) {
+            appSessionService.resolveIdentity(guestSessionToken)
+                    .map(UserIdentity::userId)
+                    .ifPresent(guestUserId ->
+                            guestMigrationService.migrateGuestToAccount(guestUserId, appUser.getUserId()));
+        }
 
         return AuthSessionResponse.from(appSessionService.createSession(
                 appUser,

@@ -18,6 +18,13 @@ public interface UserUsageRepository extends JpaRepository<UserUsageEntity, Long
 
     void deleteByUserId(String userId);
 
+    boolean existsByUserId(String userId);
+
+    /** Guest→account migration: repoint a guest's usage rows onto the account user id. */
+    @Modifying
+    @Query(value = "UPDATE user_usage SET user_id = :accountUserId WHERE user_id = :guestUserId", nativeQuery = true)
+    int reassignUser(@Param("guestUserId") String guestUserId, @Param("accountUserId") String accountUserId);
+
     /**
      * Idempotently creates the current-period usage row. The first request for a fresh
      * account can arrive concurrently from iPhone + Watch; `ON CONFLICT DO NOTHING`
