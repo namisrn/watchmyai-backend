@@ -25,6 +25,14 @@ watchmyai:
       audience: ${APPLE_CLIENT_ID:com.sasanrafatnami.WatchMyAI,com.sasanrafatnami.WatchMyAI.watchkitapp}
   session:
     ttl-days: ${WATCHMYAI_SESSION_TTL_DAYS:30}
+  app-attest:
+    # 10-digit Apple Developer Team ID (App Attest rpId = team-id.bundle-id). MUST be set in prod.
+    team-id: ${WATCHMYAI_APP_ATTEST_TEAM_ID:}
+    # Main app CFBundleIdentifier (the iPhone app attests; the Watch reuses its guest token).
+    bundle-id: ${WATCHMYAI_APP_ATTEST_BUNDLE_ID:com.sasanrafatnami.WatchMyAI}
+    # true once the app ships via App Store/TestFlight (App Attest "production" environment).
+    production: ${WATCHMYAI_APP_ATTEST_PRODUCTION:false}
+    challenge-ttl-seconds: ${WATCHMYAI_APP_ATTEST_CHALLENGE_TTL_SECONDS:300}
   legal:
     contact-email: ${WATCHMYAI_LEGAL_CONTACT_EMAIL:support@watchmyai.app}
     # Impressum-Daten nach § 5 DDG. Vor Go-Live über ENV setzen (siehe legal/IMPRESSUM.md).

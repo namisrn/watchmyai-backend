@@ -31,6 +31,8 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
 
     private static final List<PublicEndpoint> PUBLIC_ENDPOINTS = List.of(
             new PublicEndpoint("GET", "/api/v1/plans", false),
+            new PublicEndpoint("POST", "/api/v1/device/attest/challenge", false),
+            new PublicEndpoint("POST", "/api/v1/device/attest", false),
             new PublicEndpoint("POST", "/api/v1/auth/apple", false),
             new PublicEndpoint("POST", "/api/v1/auth/logout", false),
             new PublicEndpoint("POST", "/api/v1/auth/apple/notifications", false),

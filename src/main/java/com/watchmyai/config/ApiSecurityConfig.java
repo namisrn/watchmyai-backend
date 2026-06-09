@@ -44,6 +44,8 @@ public class ApiSecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, "/privacy", "/terms", "/impressum").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/plans").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/device/attest/challenge").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/device/attest").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/apple/notifications").permitAll()

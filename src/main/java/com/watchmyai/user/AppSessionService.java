@@ -21,6 +21,7 @@ public class AppSessionService {
     private static final Logger log = LoggerFactory.getLogger(AppSessionService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Duration SLIDING_RENEWAL_INTERVAL = Duration.ofDays(1);
+    private static final String GUEST_PREFIX = "guest:";
 
     private final UserSessionRepository userSessionRepository;
     private final AppUserService appUserService;
@@ -61,6 +62,29 @@ public class AppSessionService {
         );
     }
 
+    /**
+     * Guest session for an App-Attest-verified device. Reuses the same opaque-token + hash storage,
+     * sliding TTL and revocation as account sessions; the userId is the namespaced
+     * {@code guest:<hash(keyId)>} so every per-user table keys off it transparently. No
+     * {@link AppUserEntity} exists for guests, hence the null {@code appAccountToken}.
+     */
+    @Transactional
+    public CreatedSession createGuestSession(String guestUserId, String source, String deviceName) {
+        String sessionToken = generateSessionToken();
+        Instant expiresAt = Instant.now(clock).plus(sessionProperties.ttl());
+        UserSessionEntity session = new UserSessionEntity(
+                hashToken(sessionToken),
+                guestUserId,
+                source,
+                deviceName,
+                expiresAt
+        );
+        userSessionRepository.save(session);
+        log.info("Guest session created userId={} source={} expiresAt={}", guestUserId, source, expiresAt);
+
+        return new CreatedSession(sessionToken, expiresAt, guestUserId, null);
+    }
+
     @Transactional
     public Optional<UserIdentity> resolveIdentity(String sessionToken) {
         if (sessionToken == null || sessionToken.isBlank()) {
@@ -71,12 +95,19 @@ public class AppSessionService {
         return userSessionRepository
                 .findByTokenHash(hashToken(sessionToken))
                 .filter(session -> session.isActive(now))
-                .flatMap(session -> appUserService
-                        .findByUserId(session.getUserId())
-                        .map(user -> {
-                            renewIfDue(session, now);
-                            return new UserIdentity(user.getUserId(), user.getAppAccountToken().toString());
-                        }));
+                .flatMap(session -> {
+                    // Guest sessions have no AppUser row — resolve them straight from the session.
+                    if (session.getUserId().startsWith(GUEST_PREFIX)) {
+                        renewIfDue(session, now);
+                        return Optional.of(new UserIdentity(session.getUserId()));
+                    }
+                    return appUserService
+                            .findByUserId(session.getUserId())
+                            .map(user -> {
+                                renewIfDue(session, now);
+                                return new UserIdentity(user.getUserId(), user.getAppAccountToken().toString());
+                            });
+                });
     }
 
     /**
