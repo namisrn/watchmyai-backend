@@ -41,6 +41,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'com.apple.itunes.storekit:app-store-server-library:5.0.0'
     implementation 'com.nimbusds:nimbus-jose-jwt:10.9'
+    implementation 'com.webauthn4j:webauthn4j-appattest:0.31.6.RELEASE'
     testRuntimeOnly 'com.h2database:h2'
 }
 

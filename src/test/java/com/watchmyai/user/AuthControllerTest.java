@@ -43,6 +43,9 @@ class AuthControllerTest {
     @MockitoBean
     private AccountDeletionService accountDeletionService;
 
+    @MockitoBean
+    private GuestMigrationService guestMigrationService;
+
     @Test
     void statusReturnsAppleUser() throws Exception {
         when(userContextService.getCurrentUser())

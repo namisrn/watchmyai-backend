@@ -28,6 +28,12 @@ public record AppleAuthRequest(
         // but `@NotBlank` surfaces the error at DTO validation instead of after JWS parsing.
         @NotBlank
         @Size(min = 22, max = 255)
-        String nonce
+        String nonce,
+
+        // Optional: the device's guest session token when upgrading a guest to a real account.
+        // When present, the backend migrates the guest's usage/subscription/history onto the
+        // account. Not @NotBlank — most sign-ins (no prior guest session) omit it.
+        @Size(max = 512)
+        String guestSessionToken
 ) {
 }

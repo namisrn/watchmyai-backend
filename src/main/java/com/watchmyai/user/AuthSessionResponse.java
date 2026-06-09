@@ -18,4 +18,14 @@ public record AuthSessionResponse(
                 session.appAccountToken()
         );
     }
+
+    static AuthSessionResponse fromGuest(AppSessionService.CreatedSession session) {
+        return new AuthSessionResponse(
+                session.sessionToken(),
+                session.expiresAt(),
+                session.userId(),
+                "guest",
+                session.appAccountToken()
+        );
+    }
 }
