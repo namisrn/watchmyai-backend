@@ -1,6 +1,9 @@
 package com.watchmyai.ai;
 
+import com.watchmyai.common.DistributedLockService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -18,12 +21,20 @@ class AiRequestLogRetentionJobTest {
 
     private static final Instant NOW = Instant.parse("2026-05-27T03:30:00Z");
     private final Clock fixedClock = Clock.fixed(NOW, ZoneOffset.UTC);
+    private final DistributedLockService lock = directLock();
+
+    @SuppressWarnings("unchecked")
+    private static DistributedLockService directLock() {
+        ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(null);
+        return new DistributedLockService(provider);
+    }
 
     @Test
     void purgesAnswersOlderThanRetentionWindow() {
         AiRequestLogRepository repository = mock(AiRequestLogRepository.class);
         when(repository.purgeAnswersOlderThan(any())).thenReturn(42);
-        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 30);
+        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 30, lock);
 
         job.purgeExpiredAnswers();
 
@@ -34,7 +45,7 @@ class AiRequestLogRetentionJobTest {
     @Test
     void allowsConfigurableRetentionDays() {
         AiRequestLogRepository repository = mock(AiRequestLogRepository.class);
-        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 7);
+        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 7, lock);
 
         job.purgeExpiredAnswers();
 
@@ -46,11 +57,11 @@ class AiRequestLogRetentionJobTest {
     void rejectsNonPositiveRetentionDays() {
         AiRequestLogRepository repository = mock(AiRequestLogRepository.class);
 
-        assertThatThrownBy(() -> new AiRequestLogRetentionJob(repository, fixedClock, 0))
+        assertThatThrownBy(() -> new AiRequestLogRetentionJob(repository, fixedClock, 0, lock))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("must be >= 1");
 
-        assertThatThrownBy(() -> new AiRequestLogRetentionJob(repository, fixedClock, -1))
+        assertThatThrownBy(() -> new AiRequestLogRetentionJob(repository, fixedClock, -1, lock))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -58,7 +69,7 @@ class AiRequestLogRetentionJobTest {
     void emitsLogLineWhenNoRowsPurged() {
         AiRequestLogRepository repository = mock(AiRequestLogRepository.class);
         when(repository.purgeAnswersOlderThan(any())).thenReturn(0);
-        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 30);
+        AiRequestLogRetentionJob job = new AiRequestLogRetentionJob(repository, fixedClock, 30, lock);
 
         // Just verify no-op doesn't throw — the actual log behavior is debug-level
         // and would require LoggerFactory mocking that isn't worth the complexity.

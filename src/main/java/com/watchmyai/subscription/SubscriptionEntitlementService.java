@@ -172,22 +172,27 @@ public class SubscriptionEntitlementService {
         Optional<AppStoreSubscriptionEntity> existing = transactionService
                 .findByOriginalTransactionId(transaction.getOriginalTransactionId());
 
-        if (existing.isPresent() && !existing.get().getUserId().equals(currentUser.userId())) {
-            throw new IllegalArgumentException("App Store transaction is associated with a different account.");
-        }
-
-        UUID transactionToken = transaction.getAppAccountToken();
-        UUID authenticatedUserToken = parseAppAccountToken(currentUser.appAccountToken());
-        if (transactionToken != null && transactionToken.equals(authenticatedUserToken)) {
+        if (existing.isPresent()) {
+            // Ownership is already established. Reject only when the transaction belongs to a
+            // *different* account; otherwise accept regardless of the embedded appAccountToken.
+            // This covers two legitimate cases without weakening the cross-account guard:
+            //   1. guest→account migration — the transaction keeps its original (guest)
+            //      appAccountToken, but the subscription row is now owned by the signed-in account;
+            //   2. legacy tokenless purchases recorded before appAccountToken existed.
+            // A record can only exist under a user after a prior sync passed the first-sync gate
+            // below (token match) or was migrated in, so "already mine" is safe to accept.
+            if (!existing.get().getUserId().equals(currentUser.userId())) {
+                throw new IllegalArgumentException("App Store transaction is associated with a different account.");
+            }
             return;
         }
 
-        // Existing tokenless transactions may have been purchased before appAccountToken
-        // was introduced. They remain restorable only to their already recorded owner.
-        if (transactionToken == null
-                && existing.isPresent()
-                && existing.get().getUserId().equals(currentUser.userId())
-                && existing.get().getAppAccountToken() == null) {
+        // First sync of this transaction: bind it to the purchaser via the Apple-signed
+        // appAccountToken. Accounts carry the AppUser token; guests carry the deterministic
+        // guest token (see AppSessionService#guestAppAccountToken).
+        UUID transactionToken = transaction.getAppAccountToken();
+        UUID authenticatedUserToken = parseAppAccountToken(currentUser.appAccountToken());
+        if (transactionToken != null && transactionToken.equals(authenticatedUserToken)) {
             return;
         }
 

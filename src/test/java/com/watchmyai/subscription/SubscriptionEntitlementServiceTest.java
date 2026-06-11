@@ -114,6 +114,31 @@ class SubscriptionEntitlementServiceTest {
         assertThat(response).isSameAs(expected);
     }
 
+    @Test
+    void verifiedClientSyncAllowsAlreadyOwnedEntitlementEvenWhenEmbeddedTokenDiffers() {
+        // guest→account migration: the transaction keeps its original (guest) appAccountToken,
+        // but the subscription row is now owned by the signed-in account. Re-sync must succeed.
+        UUID guestToken = UUID.fromString("9f9d51bc-70ef-31ca-9c14-f307980a29d8");
+        JWSTransactionDecodedPayload payload = transaction(guestToken);
+        AppStoreSubscriptionEntity existing = new AppStoreSubscriptionEntity(USER_ID, ORIGINAL_TRANSACTION_ID);
+        SubscriptionStatusResponse expected = new SubscriptionStatusResponse(
+                PlanType.PRO,
+                "watchmyai.pro.monthly",
+                true
+        );
+        when(userContextService.getCurrentUser()).thenReturn(new UserIdentity(USER_ID, USER_TOKEN.toString()));
+        when(transactionService.findByOriginalTransactionId(ORIGINAL_TRANSACTION_ID)).thenReturn(Optional.of(existing));
+        when(transactionService.processTransaction(USER_ID, payload, "app_store_server_library", null, null, null, null, null))
+                .thenReturn(expected);
+
+        SubscriptionStatusResponse response = service.syncFromClient(
+                syncRequest(),
+                AppStoreServerService.VerificationResult.verified(payload)
+        );
+
+        assertThat(response).isSameAs(expected);
+    }
+
     private JWSTransactionDecodedPayload transaction(UUID appAccountToken) {
         JWSTransactionDecodedPayload payload = mock(JWSTransactionDecodedPayload.class);
         when(payload.getOriginalTransactionId()).thenReturn(ORIGINAL_TRANSACTION_ID);

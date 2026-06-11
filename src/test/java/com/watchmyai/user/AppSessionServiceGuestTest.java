@@ -1,6 +1,7 @@
 package com.watchmyai.user;
 
 import com.watchmyai.config.SessionProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -40,7 +41,8 @@ class AppSessionServiceGuestTest {
     private final SessionProperties sessionProperties = new SessionProperties(30);
 
     private AppSessionService newService() {
-        return new AppSessionService(userSessionRepository, appUserService, sessionProperties, FIXED_CLOCK);
+        return new AppSessionService(
+                userSessionRepository, appUserService, sessionProperties, FIXED_CLOCK, new SimpleMeterRegistry());
     }
 
     @Test
@@ -55,7 +57,10 @@ class AppSessionServiceGuestTest {
         assertThat(captor.getValue().getUserId()).isEqualTo("guest:abc123");
 
         assertThat(created.userId()).isEqualTo("guest:abc123");
-        assertThat(created.appAccountToken()).isNull();
+        // Guests now carry a deterministic appAccountToken so StoreKit purchases bind to them.
+        assertThat(created.appAccountToken())
+                .isEqualTo(AppSessionService.guestAppAccountToken("guest:abc123"));
+        assertThat(created.appAccountToken()).isNotBlank();
         assertThat(created.sessionToken()).isNotBlank();
         assertThat(created.expiresAt()).isEqualTo(Instant.parse("2026-07-09T00:00:00Z"));
     }
@@ -73,7 +78,8 @@ class AppSessionServiceGuestTest {
 
         assertThat(identity).isPresent();
         assertThat(identity.get().userId()).isEqualTo("guest:abc123");
-        assertThat(identity.get().appAccountToken()).isNull();
+        assertThat(identity.get().appAccountToken())
+                .isEqualTo(AppSessionService.guestAppAccountToken("guest:abc123"));
         verify(appUserService, never()).findByUserId(anyString());
     }
 }

@@ -1,5 +1,6 @@
 package com.watchmyai.ai;
 
+import com.watchmyai.common.DistributedLockService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -50,15 +52,18 @@ public class AiRequestLogRetentionJob {
     private final AiRequestLogRepository repository;
     private final Clock clock;
     private final int retentionDays;
+    private final DistributedLockService distributedLockService;
 
     public AiRequestLogRetentionJob(
             AiRequestLogRepository repository,
             Clock clock,
-            @Value("${watchmyai.retention.ai-request-log.days:30}") int retentionDays
+            @Value("${watchmyai.retention.ai-request-log.days:30}") int retentionDays,
+            DistributedLockService distributedLockService
     ) {
         this.repository = repository;
         this.clock = clock;
         this.retentionDays = retentionDays;
+        this.distributedLockService = distributedLockService;
         if (retentionDays < 1) {
             throw new IllegalStateException(
                     "watchmyai.retention.ai-request-log.days must be >= 1, was " + retentionDays
@@ -75,18 +80,22 @@ public class AiRequestLogRetentionJob {
     @Scheduled(cron = "${watchmyai.retention.ai-request-log.cron:0 30 3 * * *}", zone = "Europe/Berlin")
     @Transactional
     public void purgeExpiredAnswers() {
-        Instant threshold = Instant.now(clock).minus(retentionDays, ChronoUnit.DAYS);
-        int updated = repository.purgeAnswersOlderThan(threshold);
-        if (updated > 0) {
-            log.info(
-                    "GDPR retention purge complete: cleared answer column on {} rows older than {} ({} days)",
-                    updated, threshold, retentionDays
-            );
-        } else {
-            log.debug(
-                    "GDPR retention purge no-op: no rows older than {} ({} days) with non-null answer",
-                    threshold, retentionDays
-            );
-        }
+        // Distributed lock: under horizontal scaling only one pod runs the purge per window; the
+        // others skip it. Without Redis (single instance / dev) the task runs directly.
+        distributedLockService.runExclusively("retention:ai-request-log", Duration.ofMinutes(10), () -> {
+            Instant threshold = Instant.now(clock).minus(retentionDays, ChronoUnit.DAYS);
+            int updated = repository.purgeAnswersOlderThan(threshold);
+            if (updated > 0) {
+                log.info(
+                        "GDPR retention purge complete: cleared answer column on {} rows older than {} ({} days)",
+                        updated, threshold, retentionDays
+                );
+            } else {
+                log.debug(
+                        "GDPR retention purge no-op: no rows older than {} ({} days) with non-null answer",
+                        threshold, retentionDays
+                );
+            }
+        });
     }
 }

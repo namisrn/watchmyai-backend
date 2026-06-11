@@ -1,13 +1,18 @@
+# LOCAL DEVELOPMENT ONLY. Production Postgres/Redis are provisioned separately and
+# their credentials come from the environment (see .env.production.example), never
+# from this file. Ports are bound to 127.0.0.1 so that copying this compose onto a
+# public host does not expose the database/cache to the internet. Override the
+# defaults via a local .env if you need different credentials.
 services:
   postgres:
     image: postgres:16
     container_name: watchmyai-postgres
     environment:
-      POSTGRES_DB: watchmyai
-      POSTGRES_USER: watchmyai
-      POSTGRES_PASSWORD: watchmyai
+      POSTGRES_DB: ${POSTGRES_DB:-watchmyai}
+      POSTGRES_USER: ${POSTGRES_USER:-watchmyai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchmyai}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - watchmyai-postgres-data:/var/lib/postgresql/data
 
@@ -15,7 +20,7 @@ services:
     image: redis:7-alpine
     container_name: watchmyai-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - watchmyai-redis-data:/data

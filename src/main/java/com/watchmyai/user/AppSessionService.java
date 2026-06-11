@@ -1,6 +1,8 @@
 package com.watchmyai.user;
 
 import com.watchmyai.config.SessionProperties;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class AppSessionService {
@@ -27,17 +30,23 @@ public class AppSessionService {
     private final AppUserService appUserService;
     private final SessionProperties sessionProperties;
     private final Clock clock;
+    private final Counter guestSessionCreatedCounter;
 
     public AppSessionService(
             UserSessionRepository userSessionRepository,
             AppUserService appUserService,
             SessionProperties sessionProperties,
-            Clock clock
+            Clock clock,
+            MeterRegistry meterRegistry
     ) {
         this.userSessionRepository = userSessionRepository;
         this.appUserService = appUserService;
         this.sessionProperties = sessionProperties;
         this.clock = clock;
+        // Observability for guest-account farming: each App-Attest-backed guest session is a new
+        // free-tier identity. A spike here (vs. the App Attest hardware cost that bounds it) is the
+        // signal to add per-device throttling. Counter, not gauge — guest sessions are cheap events.
+        this.guestSessionCreatedCounter = meterRegistry.counter("watchmyai.guest.session_created");
     }
 
     @Transactional
@@ -80,9 +89,23 @@ public class AppSessionService {
                 expiresAt
         );
         userSessionRepository.save(session);
+        guestSessionCreatedCounter.increment();
         log.info("Guest session created userId={} source={} expiresAt={}", guestUserId, source, expiresAt);
 
-        return new CreatedSession(sessionToken, expiresAt, guestUserId, null);
+        return new CreatedSession(sessionToken, expiresAt, guestUserId, guestAppAccountToken(guestUserId));
+    }
+
+    /**
+     * Stable App Store {@code appAccountToken} for a guest. Accounts carry one on their
+     * {@link AppUserEntity}; guests have no such row, so we derive a deterministic UUID from the
+     * (already device-stable) {@code guest:<hash(keyId)>} id. Determinism matters: it survives
+     * re-attestation and lets {@code SubscriptionEntitlementService} bind a StoreKit purchase to
+     * the guest identity. It is an opaque binding value only — the real entitlement trust is the
+     * JWS signature plus the {@code originalTransactionId} ownership check.
+     */
+    static String guestAppAccountToken(String guestUserId) {
+        return UUID.nameUUIDFromBytes(("watchmyai-guest:" + guestUserId).getBytes(StandardCharsets.UTF_8))
+                .toString();
     }
 
     @Transactional
@@ -96,10 +119,15 @@ public class AppSessionService {
                 .findByTokenHash(hashToken(sessionToken))
                 .filter(session -> session.isActive(now))
                 .flatMap(session -> {
-                    // Guest sessions have no AppUser row — resolve them straight from the session.
+                    // Guest sessions have no AppUser row — resolve them straight from the session,
+                    // attaching the deterministic guest appAccountToken so guest StoreKit purchases
+                    // bind to the same identity the device used at purchase time.
                     if (session.getUserId().startsWith(GUEST_PREFIX)) {
                         renewIfDue(session, now);
-                        return Optional.of(new UserIdentity(session.getUserId()));
+                        return Optional.of(new UserIdentity(
+                                session.getUserId(),
+                                guestAppAccountToken(session.getUserId())
+                        ));
                     }
                     return appUserService
                             .findByUserId(session.getUserId())
