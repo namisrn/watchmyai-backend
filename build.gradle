@@ -59,11 +59,22 @@ jacocoTestReport {
 }
 
 jacocoTestCoverageVerification {
+    dependsOn test
     violationRules {
         rule {
             limit {
-                minimum = 0.40
+                // Bundle-level instruction floor. Current coverage sits at ~59%, so this 0.55
+                // floor catches regressions without blocking on the Apple/StoreKit integration
+                // classes that can only be exercised end-to-end. Raise as auth/subscription/quota
+                // unit coverage grows.
+                minimum = 0.55
             }
         }
     }
+}
+
+// Make the coverage floor an actual build gate. Previously the verification task was defined but
+// never wired into `check`, so the threshold was never enforced.
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }

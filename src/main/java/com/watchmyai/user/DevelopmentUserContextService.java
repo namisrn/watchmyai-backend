@@ -2,13 +2,22 @@ package com.watchmyai.user;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
+/**
+ * Dev/test-only user resolution. In addition to the bearer-session path it permits the
+ * unauthenticated {@code X-WatchMyAI-User-Id} impersonation header for local development.
+ * It is therefore restricted to the {@code dev}/{@code test} profiles — every other profile
+ * (prod and the default no-profile case) gets {@link ProductionUserContextService}, which has
+ * no header path at all, so the header can never impersonate a user on a real deployment.
+ */
 @Service
+@Profile("dev | test")
 public class DevelopmentUserContextService implements UserContextService {
 
     public static final String USER_ID_HEADER = "X-WatchMyAI-User-Id";

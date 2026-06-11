@@ -23,6 +23,7 @@ public class AccountDeletionService {
     private final UserPlanRepository userPlanRepository;
     private final UserSessionRepository userSessionRepository;
     private final AppUserRepository appUserRepository;
+    private final DeviceAttestationRepository deviceAttestationRepository;
     private final TelemetryEventRepository telemetryEventRepository;
     private final TelemetryService telemetryService;
 
@@ -34,6 +35,7 @@ public class AccountDeletionService {
             UserPlanRepository userPlanRepository,
             UserSessionRepository userSessionRepository,
             AppUserRepository appUserRepository,
+            DeviceAttestationRepository deviceAttestationRepository,
             TelemetryEventRepository telemetryEventRepository,
             TelemetryService telemetryService
     ) {
@@ -44,6 +46,7 @@ public class AccountDeletionService {
         this.userPlanRepository = userPlanRepository;
         this.userSessionRepository = userSessionRepository;
         this.appUserRepository = appUserRepository;
+        this.deviceAttestationRepository = deviceAttestationRepository;
         this.telemetryEventRepository = telemetryEventRepository;
         this.telemetryService = telemetryService;
     }
@@ -64,6 +67,9 @@ public class AccountDeletionService {
         userUsageRepository.deleteByUserId(userId);
         userPlanRepository.deleteByUserId(userId);
         userSessionRepository.deleteByUserId(userId);
+        // Drop the App Attest record too: after a guest→account migration the attestation row
+        // is re-keyed to this account userId, so without this it would outlive the account.
+        deviceAttestationRepository.deleteByUserId(userId);
         appUserRepository.deleteByUserId(userId);
 
         log.info("Deleted account and associated application data userId={}", userId);

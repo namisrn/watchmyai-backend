@@ -1,6 +1,9 @@
 package com.watchmyai.telemetry;
 
+import com.watchmyai.common.DistributedLockService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -18,12 +21,20 @@ class TelemetryRetentionJobTest {
 
     private static final Instant NOW = Instant.parse("2026-05-27T03:45:00Z");
     private final Clock fixedClock = Clock.fixed(NOW, ZoneOffset.UTC);
+    private final DistributedLockService lock = directLock();
+
+    @SuppressWarnings("unchecked")
+    private static DistributedLockService directLock() {
+        ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(null);
+        return new DistributedLockService(provider);
+    }
 
     @Test
     void purgesEventsOlderThanRetentionWindow() {
         TelemetryEventRepository repository = mock(TelemetryEventRepository.class);
         when(repository.purgeOlderThan(any())).thenReturn(128);
-        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 365);
+        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 365, lock);
 
         job.purgeExpiredEvents();
 
@@ -34,7 +45,7 @@ class TelemetryRetentionJobTest {
     @Test
     void allowsConfigurableRetentionDays() {
         TelemetryEventRepository repository = mock(TelemetryEventRepository.class);
-        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 90);
+        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 90, lock);
 
         job.purgeExpiredEvents();
 
@@ -46,11 +57,11 @@ class TelemetryRetentionJobTest {
     void rejectsNonPositiveRetentionDays() {
         TelemetryEventRepository repository = mock(TelemetryEventRepository.class);
 
-        assertThatThrownBy(() -> new TelemetryRetentionJob(repository, fixedClock, 0))
+        assertThatThrownBy(() -> new TelemetryRetentionJob(repository, fixedClock, 0, lock))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("must be >= 1");
 
-        assertThatThrownBy(() -> new TelemetryRetentionJob(repository, fixedClock, -1))
+        assertThatThrownBy(() -> new TelemetryRetentionJob(repository, fixedClock, -1, lock))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -58,7 +69,7 @@ class TelemetryRetentionJobTest {
     void doesNotThrowWhenNoRowsPurged() {
         TelemetryEventRepository repository = mock(TelemetryEventRepository.class);
         when(repository.purgeOlderThan(any())).thenReturn(0);
-        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 365);
+        TelemetryRetentionJob job = new TelemetryRetentionJob(repository, fixedClock, 365, lock);
 
         job.purgeExpiredEvents();
 

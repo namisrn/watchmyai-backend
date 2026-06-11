@@ -25,6 +25,7 @@ class AccountDeletionServiceTest {
     private final UserPlanRepository userPlanRepository = mock(UserPlanRepository.class);
     private final UserSessionRepository userSessionRepository = mock(UserSessionRepository.class);
     private final AppUserRepository appUserRepository = mock(AppUserRepository.class);
+    private final DeviceAttestationRepository deviceAttestationRepository = mock(DeviceAttestationRepository.class);
     private final TelemetryEventRepository telemetryEventRepository = mock(TelemetryEventRepository.class);
     private final TelemetryService telemetryService = mock(TelemetryService.class);
 
@@ -36,6 +37,7 @@ class AccountDeletionServiceTest {
             userPlanRepository,
             userSessionRepository,
             appUserRepository,
+            deviceAttestationRepository,
             telemetryEventRepository,
             telemetryService
     );
@@ -54,6 +56,7 @@ class AccountDeletionServiceTest {
                 userUsageRepository,
                 userPlanRepository,
                 userSessionRepository,
+                deviceAttestationRepository,
                 appUserRepository
         );
         inOrder.verify(tokenRevocationService).revokeAuthorization("fresh-code");
@@ -63,6 +66,7 @@ class AccountDeletionServiceTest {
         inOrder.verify(userUsageRepository).deleteByUserId("apple:subject-123");
         inOrder.verify(userPlanRepository).deleteByUserId("apple:subject-123");
         inOrder.verify(userSessionRepository).deleteByUserId("apple:subject-123");
+        inOrder.verify(deviceAttestationRepository).deleteByUserId("apple:subject-123");
         inOrder.verify(appUserRepository).deleteByUserId("apple:subject-123");
     }
 
@@ -80,6 +84,7 @@ class AccountDeletionServiceTest {
         verify(userUsageRepository, never()).deleteByUserId("apple:subject-123");
         verify(userPlanRepository, never()).deleteByUserId("apple:subject-123");
         verify(userSessionRepository, never()).deleteByUserId("apple:subject-123");
+        verify(deviceAttestationRepository, never()).deleteByUserId("apple:subject-123");
         verify(appUserRepository, never()).deleteByUserId("apple:subject-123");
     }
 }

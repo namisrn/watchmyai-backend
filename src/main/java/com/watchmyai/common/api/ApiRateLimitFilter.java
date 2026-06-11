@@ -44,6 +44,12 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private static final List<RateLimitPolicy> POLICIES = List.of(
             new RateLimitPolicy("POST", "/api/v1/ai/ask", false, "ai-ask", 30),
             new RateLimitPolicy("GET", "/api/v1/ai/ask/", true, "ai-ask-poll", 120),
+            // App Attest device bootstrap (both public/unauthenticated). A legitimate device
+            // requests at most one challenge + one attestation per guest-session creation, and
+            // only when no token is stored — so these ceilings never bite real traffic but stop
+            // an attacker minting challenges / hammering the webauthn4j validation in a loop.
+            new RateLimitPolicy("POST", "/api/v1/device/attest/challenge", false, "device-attest-challenge", 30),
+            new RateLimitPolicy("POST", "/api/v1/device/attest", false, "device-attest", 20),
             new RateLimitPolicy("POST", "/api/v1/auth/apple", false, "auth-apple", 10),
             // Apple's Sign-In server-to-server notifications endpoint. Apple's
             // traffic is naturally bounded (one notification per consent change),
