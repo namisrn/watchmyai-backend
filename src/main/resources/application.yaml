@@ -44,9 +44,10 @@ watchmyai:
     vat-id: ${WATCHMYAI_LEGAL_VAT_ID:}
   plan-catalog:
     # Limits & cost-caps tuned for Year-1 profitability under Apple's 30% cut.
-    # Worst-case marge after 30% Apple fee:
+    # Prices are canonical in WatchMyAI.storekit; keep these in sync (release gate:
+    # scripts/check-plan-consistency.py). Worst-case marge after 30% Apple fee:
     #   PLUS  $2.99 ≈ €2.75 brutto → €1.92 netto, max cost €1.20 → ~37% margin
-    #   PRO   $5.99 ≈ €5.51 brutto → €3.86 netto, max cost €2.80 → ~27% margin
+    #   PRO   $6.99 ≈ €6.43 brutto → €4.50 netto, max cost €2.80 → ~38% margin
     # Monthly limits sit well above the P95 expected usage for a watchOS Q&A
     # assistant, so no real user will feel them — only abuse paths are bounded.
     plans:
