@@ -51,6 +51,12 @@ json_field() {
   python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2], ""))' "$json" "$field"
 }
 
+# Static gate first (no network): one canonical plan/price/limit truth across
+# StoreKit, the backend plan-catalog and the App Store reviewer notes (BR-PLAN-01).
+# Skips the frontend cross-checks gracefully when only the backend is checked out.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "$SCRIPT_DIR/check-plan-consistency.py" || fail 'plan/price/limit consistency gate failed (see DRIFT above)'
+
 require_status GET /actuator/health 200 'application/vnd.spring-boot.actuator'
 require_status GET /actuator/health/readiness 200 'application/vnd.spring-boot.actuator'
 require_status GET /api/v1/auth/status 401 'application/json'

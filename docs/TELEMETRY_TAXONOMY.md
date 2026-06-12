@@ -25,17 +25,23 @@
 | `paywall_viewed` | User öffnet die Paywall-Seite (`IOSPaywallScreen.onAppear`) | `ios` | `source` (`plan_screen` / `quota_nudge` / `limit_reached` …) | Funnel-Top: wie viele kommen überhaupt zur Kasse? |
 | `quota_nudge_shown` | 70%-Banner erscheint im iOS Home | `ios` | `usage_percent` | Mid-Funnel: welche User sehen die Soft-Upsell-Stelle? |
 | `purchase_initiated` | User tappt CTA im iOS-Paywall (`IOSPaywallScreen.purchaseAction`), direkt vor dem StoreKit-Sheet | `ios` | `product_id`, `billing_period` (`monthly`/`yearly`), `source` | Funnel-Boden: Tap → tatsächliche Subscription. Conversion gegen `subscription_state_changed`. |
+| `app_first_launch` | Erster Start nach Install (einmalig, UserDefaults-Flag in `WatchMyAIApp.init`) | `ios` | — (`locale` kommt aus dem Event-Top-Level-Feld) | Funnel-Top: Installs-by-Locale, Basis für Aktivierungsrate |
+| `signin_completed` | Verifizierte Apple-Session gespeichert (`AuthSession.storeSession`) | `ios` | `is_first_time` | Aktivierung: erster Sign-in vs. Re-Auth auf demselben Install |
+| `conversation_started` | Erste User-Nachricht in einem neuen Chat (`ConversationViewModel.sendText`) | `watch` | `source` (`watch`; v1.1 erweitert auf Quick-Entry-Enum) | Aktivierung pro Einstieg; Vorstufe zu `ai_answer_completed` |
+| `restore_invoked` | User tappt "Restore" im iOS-Paywall (`IOSPaywallScreen.restoreAction`) | `ios` | `source` | Reaktivierung vs. Neukauf trennen; Entitlement-Sync-Lücken erkennen |
 
 ---
 
 ## 2. Geplante Events — nicht implementiert
 
+> Alle zuvor geplanten Events sind seit 1.0.1 instrumentiert (siehe § 1). Neue
+> Kandidaten hier eintragen, **bevor** der Code sie sendet (sonst verwirft der
+> Server-side-Filter sie nicht — er hat keine Allowlist —, aber die Taxonomie
+> bliebe die Quelle der Wahrheit hinterher).
+
 | Event-Name | Wann | Property-Idee |
 |---|---|---|
-| `restore_invoked` | User tappt "Restore Purchases" | `source` |
-| `signin_completed` | Apple-Sign-In erfolgreich | `is_first_time` |
-| `app_first_launch` | Erster Start nach Install | `locale` |
-| `conversation_started` | Erste Nachricht in einem neuen Chat | `source` (`watch` / `iphone`) |
+| _(derzeit keine)_ | | |
 
 ---
 
