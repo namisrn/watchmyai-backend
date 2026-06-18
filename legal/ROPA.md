@@ -17,10 +17,10 @@
 
 | Feld | Wert |
 |---|---|
-| Verantwortlicher i.S.d. Art. 4 Nr. 7 DSGVO | <<Vollständiger Name>>, <<Anschrift>> (siehe `IMPRESSUM.md`) |
+| Verantwortlicher i.S.d. Art. 4 Nr. 7 DSGVO | Sasan Nami, Ludwig-Erhard-Straße 31, 59065 Hamm, Germany (siehe `IMPRESSUM.md`) |
 | Datenschutzbeauftragter | **Nicht erforderlich** nach § 38 BDSG (Solo-Unternehmer, keine 20+ MA, keine systematische umfangreiche Beobachtung im Sinne Art. 37 Abs. 1 lit. b/c DSGVO) |
 | Vertreter in der EU | Entfällt (Verantwortlicher sitzt selbst in der EU) |
-| Aufsichtsbehörde | <<Landesdatenschutzbehörde des Bundeslands der Anschrift — z.B. „Der Bayerische Landesbeauftragte für den Datenschutz">> |
+| Aufsichtsbehörde | Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen (LDI NRW), Düsseldorf |
 | Kontakt für Betroffenenanfragen | support@watchmyai.app |
 
 ---
@@ -51,7 +51,7 @@
 | **Kategorien personenbezogener Daten** | • Prompt-Inhalt (kann freier Text mit potenziell personenbezogenen Inhalten sein, z.B. Frage „Wie schreibe ich einen Brief an Anna Müller?")<br>• Sprach-Code (z.B. `de-DE`)<br>• Quota-Metadaten: User-ID, Plan, Tagesnutzung, Monatsnutzung<br>• Generierte Antwort |
 | **Speicherort** | • Prompt: nur transient im RAM des Backends + im OpenAI-Request<br>• Antwort + Metadaten: PostgreSQL `ai_request_log` bei Hetzner (DE) |
 | **Empfänger** | OpenAI, L.L.C., USA — als Auftragsverarbeiter |
-| **Drittlandtransfer** | **JA** — OpenAI sitzt in den USA. Absicherung durch:<br>• Standard Contractual Clauses (SCCs) Modul 2 im OpenAI-DPA<br>• Transfer Impact Assessment (TIA) — siehe `legal/signed/TIA_OpenAI_<<datum>>.pdf`<br>• Zero Data Retention bei OpenAI beantragt (siehe `AVV_CHECKLIST.md`) — Prompts werden bei OpenAI nicht über die Antwortgenerierung hinaus gespeichert<br>• Keine Apple-User-ID, kein Email, keine Geräte-IDs im OpenAI-Request |
+| **Drittlandtransfer** | **JA** — OpenAI sitzt in den USA. Absicherung durch:<br>• Standard Contractual Clauses (SCCs) Modul 2 im OpenAI-DPA<br>• Transfer Impact Assessment (TIA) vor App-Store-Freigabe unter `legal/signed/` dokumentieren<br>• Zero Data Retention bei OpenAI vor App-Store-Freigabe schriftlich bestätigen lassen (siehe `AVV_CHECKLIST.md`)<br>• Backend sendet `store=false` und kein `user`-Feld an OpenAI<br>• Keine Apple-User-ID, kein Email, keine Geräte-IDs im OpenAI-Request |
 | **Speicherfrist** | • Prompt-Inhalt: 0 Sekunden bei uns (nie gespeichert, nur transient verarbeitet)<br>• KI-Antwort: 30 Tage in `ai_request_log.answer`, danach automatischer Purge durch Spring `@Scheduled` Job (siehe `AiRequestLogRetentionJob`)<br>• Kosten- und Nutzungsmetadaten: 24 Monate (Rechnungslegungs- und Steuerpflicht nach § 147 AO), danach Anonymisierung |
 | **TOM** | • TLS 1.3 zu OpenAI<br>• API-Key in Hetzner-Secrets, nicht im Repo<br>• Pre-Submit-Filter im Backend: Prompt > 2000 Zeichen wird abgelehnt (begrenzt versehentlichen Massendaten-Upload)<br>• Quoten-Cap (`monthlyCostCapEur`) verhindert ausufernde Kosten<br>• Idempotency-Key verhindert Duplikat-Verarbeitung |
 

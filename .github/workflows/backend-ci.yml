@@ -38,8 +38,8 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
-      - name: Test
-        run: ./gradlew test jacocoTestReport --no-daemon
+      - name: Check
+        run: ./gradlew check jacocoTestReport --no-daemon
         env:
           REDIS_URL: redis://localhost:6379
       - name: Upload coverage report

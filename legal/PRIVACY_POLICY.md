@@ -79,22 +79,23 @@ Du tippst eine Frage  →  WatchMyAI-Server (Hetzner, Deutschland)
 |---|---|---|
 | **Deine Watch / dein iPhone** | Den eingegebenen Text | Lokal in SwiftData (optional via iCloud synchronisiert) |
 | **Unser Backend (Hetzner DE)** | Empfängt Frage, leitet weiter, empfängt Antwort | **Fragetext: 0 Sekunden** (nicht gespeichert)<br>Antworttext: **30 Tage** (für Kostenanalyse + Reklamationsbearbeitung), danach automatisch gelöscht |
-| **OpenAI USA** | Verarbeitet Frage, generiert Antwort | **0 Sekunden** bei aktivem „Zero Data Retention"-Opt-In (von uns eingerichtet) |
+| **OpenAI USA** | Verarbeitet Frage, generiert Antwort | **0 Sekunden** bei produktiv aktivem „Zero Data Retention"-Opt-In; App-Store-Freigabe erst nach schriftlichem Nachweis |
 
 ### Drittlandtransfer USA — wichtig
 
 OpenAI verarbeitet deine Frage in den USA. Die USA gelten nach EU-Recht als
 **unsicheres Drittland** im Sinne des Art. 44 DSGVO.
 
-**Welche Schutzmaßnahmen wir getroffen haben:**
+**Welche Schutzmaßnahmen für die App-Store-Freigabe erforderlich sind:**
 
 - **Standard Contractual Clauses** (SCCs, EU-Kommission 2021/914) im Vertrag
-  mit OpenAI signiert (Modul 2: Verantwortlicher → Auftragsverarbeiter)
-- **Zero Data Retention** bei OpenAI aktiviert — OpenAI speichert deine Frage
-  nicht über die Antwort hinaus
+  mit OpenAI nachweisen (Modul 2: Verantwortlicher → Auftragsverarbeiter)
+- **Zero Data Retention** bei OpenAI schriftlich bestätigen — OpenAI speichert
+  die Frage dann nicht über die Antwort hinaus
 - **Datenminimierung:** Wir senden an OpenAI **keine** Apple-User-ID, **keine**
-  E-Mail-Adresse, **keine** Geräte-IDs — nur den reinen Text deiner Frage
-- **Transfer Impact Assessment** (TIA) intern dokumentiert
+  E-Mail-Adresse, **keine** Geräte-IDs und kein `user`-Feld; der Request setzt
+  `store=false`
+- **Transfer Impact Assessment** (TIA) intern dokumentieren und unter `legal/signed/` ablegen
 
 **Was du tun kannst, falls du US-Verarbeitung vermeiden willst:**
 
@@ -221,7 +222,7 @@ Hinweis beim nächsten Start kommuniziert.
 | Apple-User-ID, E-Mail | Bis Account-Löschung | Account-Identifikation |
 | Session-Token | 30 Tage rolling | Sicherheits-Best-Practice |
 | Prompt-Inhalt im Backend | **0 Sekunden** | Nicht gespeichert |
-| Prompt-Inhalt bei OpenAI | **0 Sekunden** mit ZDR | OpenAI-Konfiguration |
+| Prompt-Inhalt bei OpenAI | **0 Sekunden** nach produktiv bestätigter ZDR-Konfiguration | OpenAI-Konfiguration |
 | KI-Antwort | **30 Tage**, dann NULL | Reklamationsbearbeitung |
 | Quoten-Counter | Aktuelle Periode + 24 Monate | Kostenanalyse |
 | Transaktions-IDs | Bis Account-Löschung + 10 Jahre anonymisiert | § 147 AO |
@@ -334,9 +335,9 @@ Substanzielle Änderungen (z.B. neuer Subprozessor) werden:
 > The German version above is the legally binding version. The following English
 > translation is provided for convenience.
 
-(English translation TBD before EU launch — should mirror the German version.
-Recommended translator: DeepL Pro with legal-domain post-editing, or a
-certified legal translator for ~€300-500.)
+No reviewed English translation is included in this repository. App Store
+metadata should link to the German policy unless a legally reviewed English
+translation is published.
 
 ---
 

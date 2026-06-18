@@ -118,33 +118,33 @@ Methodik: Eintrittswahrscheinlichkeit × Schadensschwere (jeweils 1-4).
 **Technisch:**
 - ✅ Hard-Limit 2.000 Zeichen pro Prompt (begrenzt Massendaten-Eintrag)
 - ✅ Watch-UI limitiert durch Hardware natürlich kurze Eingaben
-- ⏳ **TBD:** Pre-Submit-Hint in iOS-App „Gib keine Passwörter, Gesundheitsdaten oder Kontodaten ein" beim ersten Start
-- ⏳ **TBD:** In den Settings „Sicherheitshinweise" mit Use-Case-Negativliste
+- [ ] Release-Blocker: Pre-Submit-Hint in iOS-App „Gib keine Passwörter, Gesundheitsdaten oder Kontodaten ein" beim ersten Start
+- [ ] Release-Blocker: In den Settings „Sicherheitshinweise" mit Use-Case-Negativliste
 
 **Organisatorisch:**
 - ✅ Privacy Policy beschreibt Datenfluss in einfacher Sprache
-- ⏳ **TBD:** AI-Act-konforme „Du sprichst mit einer KI"-Hinweis im Onboarding (siehe `DSGVO-7`)
+- [ ] Release-Blocker: AI-Act-konforme „Du sprichst mit einer KI"-Hinweis im Onboarding (siehe `DSGVO-7`)
 
 ### Gegen R2 — OpenAI nutzt Daten trotz ZDR
 
 **Vertraglich:**
 - ✅ DPA mit SCCs Modul 2 (Controller-Processor) ausnahmslos signiert
-- ⏳ **TBD:** ZDR-Opt-In schriftlich von OpenAI bestätigen lassen, alle 6 Monate Reverifizierung
-- ⏳ **TBD:** TIA (Transfer Impact Assessment) als Backup-Dokumentation
+- [ ] Release-Blocker: ZDR-Opt-In schriftlich von OpenAI bestätigen lassen, alle 6 Monate Reverifizierung
+- [ ] Release-Blocker: TIA (Transfer Impact Assessment) als Backup-Dokumentation unter `legal/signed/` ablegen
 
 **Technisch:**
-- ⏳ **TBD:** Logging im Backend dass jeder OpenAI-Request mit `store: false` und ohne `user`-Identifier-Feld gesendet wird
-- ⏳ **TBD:** Halbjährliches Audit: Stichprobe von 10 OpenAI-Requests in `ai_request_log` analysieren, ob versehentlich personenbezogene Felder mitgesendet wurden
+- [x] Backend-Regression: jeder OpenAI-Request-Body setzt `store=false` und enthält kein `user`-Identifier-Feld
+- [ ] Release-Blocker: Halbjährliches Audit definieren; Stichprobe von 10 OpenAI-Requests analysieren, ob versehentlich personenbezogene Felder mitgesendet wurden
 
 ### Gegen R8 — Schaden durch fehlerhafte KI-Antwort
 
 **Organisatorisch / Vertraglich:**
 - ✅ Terms of Use schließen „high-risk decisions" aus (siehe `LegalPageController` → `/terms`)
-- ⏳ **TBD:** In der App vor jeder Antwort (bei kritischen Intents wie „medical", „legal", „financial") eine sichtbare Warnung „Keine professionelle Beratung"
-- ⏳ **TBD:** Keyword-Filter bei besonders heiklen Themen (Suizid, Selbstverletzung, Notfälle) → Antwort wird durch hardgecodete Notruf-Hinweise ersetzt
+- [ ] Release-Blocker: In der App vor jeder Antwort (bei kritischen Intents wie „medical", „legal", „financial") eine sichtbare Warnung „Keine professionelle Beratung"
+- [ ] Release-Blocker: Keyword-Filter bei besonders heiklen Themen (Suizid, Selbstverletzung, Notfälle) → Antwort wird durch hardgecodete Notruf-Hinweise ersetzt
 
 **Marketing:**
-- ⏳ **TBD:** In Marketing-Materialien KEINE Behauptungen wie „Beratung", „Hilfe" o.ä. verwenden — nur „kurze Antworten", „Recherchehilfe"
+- [ ] Release-Blocker: In Marketing-Materialien KEINE Behauptungen wie „Beratung", „Hilfe" o.ä. verwenden — nur „kurze Antworten", „Recherchehilfe"
 
 ### Gegen R3, R4, R5, R6, R7 — siehe ROPA TOM-Spalten
 
@@ -152,7 +152,7 @@ Methodik: Eintrittswahrscheinlichkeit × Schadensschwere (jeweils 1-4).
 
 ## 5. Restrisiko-Bewertung
 
-Nach Umsetzung der oben markierten ⏳-Maßnahmen sinken die Risiko-Scores auf:
+Nach Umsetzung der oben markierten Release-Blocker sinken die Risiko-Scores auf:
 
 | ID | Restrisiko | Bewertung |
 |---|---|---|
@@ -161,7 +161,7 @@ Nach Umsetzung der oben markierten ⏳-Maßnahmen sinken die Risiko-Scores auf:
 | R8 | 6 (durch Disclaimer reduziert, aber nicht eliminierbar) | Akzeptabel mit AGB-Schutz |
 | Übrige | ≤ 4 | Akzeptabel |
 
-**Gesamteinschätzung:** Nach Implementierung der ⏳-Maßnahmen ist das Restrisiko
+**Gesamteinschätzung:** Nach Implementierung der offenen Release-Blocker ist das Restrisiko
 verhältnismäßig. **Keine vorherige Konsultation der Aufsichtsbehörde
 (Art. 36 DSGVO) erforderlich.**
 
@@ -206,15 +206,15 @@ Nicht erforderlich, da kein DSB bestellt (siehe `ROPA.md` § 0). Ersatzweise:
 
 ## 9. Dokumentation der Entscheidung
 
-> Diese DPIA wurde durch <<Vollständiger Name>> als Verantwortlicher i.S.d. Art. 4
+> Diese DPIA wurde durch Sasan Nami als Verantwortlicher i.S.d. Art. 4
 > Nr. 7 DSGVO erstellt und nach bestem Wissen geprüft.
 >
 > Die Verarbeitung ist nach Abwägung der Notwendigkeit, der getroffenen
 > Schutzmaßnahmen und des Restrisikos zulässig und mit Art. 35 DSGVO konform.
 >
-> **Datum der Erstellung:** <<Datum>>
-> **Datum nächste Überprüfung:** <<Datum + 12 Monate>>
-> **Unterschrift / Bestätigung:** <<Name>>
+> **Datum der Erstellung:** 2026-06-16
+> **Datum nächste Überprüfung:** 2027-06-16
+> **Unterschrift / Bestätigung:** Freigabe ausstehend bis alle Release-Blocker und externen Nachweise abgeschlossen sind.
 
 ---
 

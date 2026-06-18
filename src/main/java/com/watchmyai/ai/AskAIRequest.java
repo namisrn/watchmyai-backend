@@ -10,7 +10,10 @@ public record AskAIRequest(
         String input,
 
         @NotBlank(message = "source must not be blank")
-        @Pattern(regexp = "watch|ios", message = "source must be one of: watch, ios")
+        @Pattern(
+                regexp = "watch|ios|app|complication|siri|action_button|double_tap|smart_stack|ios_control|lockscreen_widget",
+                message = "source must be one of: watch, ios, app, complication, siri, action_button, double_tap, smart_stack, ios_control, lockscreen_widget"
+        )
         String source,
 
         @NotBlank(message = "mode must not be blank")

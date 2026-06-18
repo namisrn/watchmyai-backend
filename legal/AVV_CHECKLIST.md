@@ -16,11 +16,11 @@
 
 | # | Subprozessor | Verarbeitete Daten | Drittland? | AVV-Status | Letzte Prüfung |
 |---|---|---|---|---|---|
-| 1 | **Apple Inc.** (Sign in with Apple, App Store, IAP, APNs, iCloud) | Apple-User-ID, Email (privat-relay), Subscription-Status, Chat-Sync via CloudKit | USA (DPF-zertifiziert + SCCs) | <<❌ TODO / ✅ abgeschlossen am …>> | <<Datum>> |
-| 2 | **OpenAI, L.L.C.** (Responses API: KI-Antworten) | Prompts (Inhalt der User-Frage), generierte Antworten, technische Metadaten | USA (**nicht** DPF-zertifiziert seit 2024 — SCCs zwingend) | <<❌ TODO / ✅ abgeschlossen am …>> | <<Datum>> |
-| 3 | **Hetzner Online GmbH** (Server, Postgres, Redis, Object Storage) | Alle gespeicherten Daten in deinem Server-Image | Deutschland (kein Drittland) | <<❌ TODO / ✅ abgeschlossen am …>> | <<Datum>> |
-| 4 | **PostHog Inc.** ODER **Plausible Insights OÜ** (Telemetrie, falls deployed) | Aggregierte Funnel-Events (kein Prompt-Inhalt) | PostHog: USA + EU-Region wählbar / Plausible: EE-EU | <<❌ TODO falls deployed / N/A>> | <<Datum>> |
-| 5 | **Sentry, GmbH** (Error-Tracking, falls deployed) | Stacktraces, Error-Kontexte (können personenbezogene Felder enthalten) | EU-Region wählbar (Sentry SaaS Frankfurt) | <<❌ TODO falls deployed / N/A>> | <<Datum>> |
+| 1 | **Apple Inc.** (Sign in with Apple, App Store, IAP, APNs, iCloud) | Apple-User-ID, Email (privat-relay), Subscription-Status, Chat-Sync via CloudKit | USA (DPF-zertifiziert + SCCs) | Release-Blocker: Nachweis vor App-Store-Freigabe ablegen | Nicht belegt |
+| 2 | **OpenAI, L.L.C.** (Responses API: KI-Antworten) | Prompts (Inhalt der User-Frage), generierte Antworten, technische Metadaten | USA (**nicht** DPF-zertifiziert seit 2024 — SCCs zwingend) | Release-Blocker: DPA/SCC, ZDR-Bestätigung und TIA vor App-Store-Freigabe ablegen | Nicht belegt |
+| 3 | **Hetzner Online GmbH** (Server, Postgres, Redis, Object Storage) | Alle gespeicherten Daten in deinem Server-Image | Deutschland (kein Drittland) | Release-Blocker: AVV-Nachweis vor App-Store-Freigabe ablegen | Nicht belegt |
+| 4 | **PostHog Inc.** ODER **Plausible Insights OÜ** (Telemetrie, falls deployed) | Aggregierte Funnel-Events (kein Prompt-Inhalt) | PostHog: USA + EU-Region wählbar / Plausible: EE-EU | N/A, solange nicht deployed; sonst AVV/DPA vor Aktivierung ablegen | Nicht belegt |
+| 5 | **Sentry, GmbH** (Error-Tracking, falls deployed) | Stacktraces, Error-Kontexte (können personenbezogene Felder enthalten) | EU-Region wählbar (Sentry SaaS Frankfurt) | N/A, solange nicht deployed; sonst AVV/DPA vor Aktivierung ablegen | Nicht belegt |
 
 ---
 
@@ -95,7 +95,7 @@ grep -rn "userId\|appleSubject\|email\|appAccountToken" \
 
 1. Hetzner-Konto → **Sicherheit** → **AVV (Auftragsverarbeitungsvertrag)**
 2. Online-AVV elektronisch akzeptieren (Self-Service)
-3. PDF-Bestätigung in dieses Verzeichnis als `legal/signed/Hetzner_AVV_<<datum>>.pdf` ablegen
+3. PDF-Bestätigung in `legal/signed/` mit Datum im Dateinamen ablegen
 
 **Quelle:** https://docs.hetzner.com/general/general-terms-and-conditions/data-privacy-faq/
 
@@ -166,5 +166,5 @@ deine Subprozessor-Liste änderst:
 
 ---
 
-**Stand:** <<Datum bei jeder Änderung aktualisieren>>
+**Stand:** 2026-06-16
 **Verantwortlich:** Siehe `IMPRESSUM.md`

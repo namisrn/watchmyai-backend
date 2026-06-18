@@ -10,6 +10,7 @@
 -   Production profile exposes health/readiness endpoints through Spring Boot Actuator.
 -   `/api/v1/ai/ask`, AI polling, auth, subscription sync, and App Store notifications have Redis-backed production rate limits.
 -   AI model routing, token pricing, FX rate, plan limits, and monthly cost caps are config-backed under `watchmyai.ai.*` and `watchmyai.plan-catalog`.
+-   OpenAI Responses API requests are sent with `store=false` and without a `user` identifier field.
 -   Debug plan manipulation remains disabled in `prod`.
 -   Live deployment at `https://api.watchmyai.app` reports health `UP`.
 -   Live App Store Server status reports `verificationEnabled=true`, `credentialsConfigured=true`, and `productionReady=true`.
@@ -104,6 +105,7 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   Confirm in-app account deletion with a TestFlight test account, including Apple reauthentication, local sign-out, and synced chat removal.
 -   Prepare final App Store screenshots, app icon, privacy nutrition labels, Terms of Use, and Privacy Policy.
 -   Before App Store release, verify `APP_STORE_ENVIRONMENT=PRODUCTION` and set the Production App Store Server Notification URL.
+-   Complete legal readiness outside the codebase before App Store approval: Impressum production contact, signed AVVs/DPAs, OpenAI ZDR confirmation, TIA, DPIA sign-off, ROPA review, and final Privacy Policy/Terms URLs.
 
 ## Release Gates
 
@@ -115,6 +117,6 @@ With `SPRING_PROFILES_ACTIVE=prod`, the backend fails fast unless:
 -   `/api/v1/subscription/status` reflects the active plan.
 -   StoreKit purchase and restore both sync to backend.
 -   App Store Server status reports `productionReady=true` with authenticated release gate token.
--   `/api/v1/plans` returns Free `5/day`, `20/month`, Plus `100/day`, `1000/month`, Pro `200/day`, `1500/month`.
+-   `/api/v1/plans` returns Free `5/day`, `20/month`, Plus `60/day`, `500/month`, Pro `150/day`, `1000/month` plus `60` premium requests.
 -   Debug endpoints remain unavailable outside `dev`.
 -   Failed requests include a `requestId` in JSON and `X-Request-Id` response header.

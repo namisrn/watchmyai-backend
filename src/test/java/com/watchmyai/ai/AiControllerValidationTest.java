@@ -73,6 +73,37 @@ class AiControllerValidationTest {
     }
 
     @Test
+    void askAcceptsSystemEntrySources() throws Exception {
+        when(aiService.ask(any(AskAIRequest.class)))
+                .thenReturn(new AskAIResponse(
+                        AskAIResponse.STATUS_COMPLETED,
+                        "Test answer",
+                        "gpt-5.4-mini",
+                        PlanType.FREE,
+                        true,
+                        10,
+                        10,
+                        new BigDecimal("0.001000"),
+                        new BigDecimal("0.010000"),
+                        "normal"
+                ));
+
+        mockMvc.perform(post("/api/v1/ai/ask")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "input": "Erkläre PostgreSQL kurz.",
+                                  "source": "siri",
+                                  "mode": "explain",
+                                  "language": "de",
+                                  "clientRequestId": "test-request-001"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestAllowed").value(true));
+    }
+
+    @Test
     void askReturnsBadRequestForBlankInput() throws Exception {
         mockMvc.perform(post("/api/v1/ai/ask")
                         .contentType(MediaType.APPLICATION_JSON)

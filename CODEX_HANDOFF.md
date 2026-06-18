@@ -7,13 +7,14 @@ The backend is a Spring Boot AI Gateway.
 
 Main product goals:
 - No OpenAI API key in the client
-- Free plan with hard lifetime limit
-- Plus/Pro subscriptions later via StoreKit 2
+- Free/Plus/Pro plan catalog served by the backend
+- Plus/Pro subscriptions via StoreKit 2 and App Store Server verification
 - Monthly usage and estimated AI costs tracked per user
 - Automatic quota/cost throttling
 - Short AI responses with strict token limits
 - Cheap models by default
-- Expensive models only limited for Pro
+- Premium request quota reserved for Pro
+- OpenAI requests sent with `store=false` and without user/account identifiers
 - Privacy and security from the beginning
 
 ## Current Backend Stack
@@ -30,7 +31,7 @@ Main product goals:
 ## Current Branch
 
 Current active branch:
-`feature/request-idempotency`
+`develop`
 
 Base branch:
 `develop`
@@ -48,6 +49,15 @@ Request:
 - language: de | en | auto
 - clientRequestId
 
+The endpoint is idempotent by `(userId, clientRequestId)` and uses an async job
+flow for AI generation. A duplicate request returns the existing job/response and
+must not charge quota or call OpenAI again.
+
+Polling:
+- `GET /api/v1/ai/ask/{clientRequestId}`
+
+The client-facing API contract is unchanged for 1.0.1.
+
 ### Quota / Usage
 
 Usage is persisted in PostgreSQL via:
@@ -56,7 +66,12 @@ Usage is persisted in PostgreSQL via:
 - `UsageService`
 
 Flyway migration:
-- `V1__create_user_usage_table.sql`
+- usage and AI request log migrations are under `src/main/resources/db/migration`
+
+Canonical plan limits live in `application.yaml` `watchmyai.plan-catalog`:
+- Free: `5/day`, `20/month`
+- Plus: `60/day`, `500/month`
+- Pro: `150/day`, `1000/month`, `60` premium requests
 
 ### User Context
 
@@ -64,11 +79,10 @@ Current user is abstracted through:
 - `UserIdentity`
 - `UserContextService`
 - `DevelopmentUserContextService`
+- production bearer/session and Apple auth services
 
-Currently returns:
-`debug-user`
-
-Later this should be replaced by real auth/session context.
+Development can still use the dev/test identity path, but production user context
+is driven by authenticated sessions and App Store/Apple account state.
 
 ### Debug Endpoints
 
@@ -78,32 +92,13 @@ Quota debug endpoints are only active in `dev` profile:
 - `/api/v1/quota/debug/reset`
 - `/api/v1/quota/debug/cost/high`
 
-## Current Request Idempotency Work
+## Release Stabilization Notes
 
-Goal:
-Use `clientRequestId` to prevent duplicate AI requests from being charged/counting usage multiple times.
-
-Current files:
-- `AiRequestLogEntity`
-- `AiRequestLogRepository`
-- `V2__create_ai_request_log_table.sql`
-- `AiService` partially integrated with request log lookup
-
-Desired behavior:
-1. Get current user ID from `UserContextService`
-2. Check `AiRequestLogRepository.findByUserIdAndClientRequestId(userId, clientRequestId)`
-3. If found, return stored `AskAIResponse`
-4. If not found:
-    - check quota
-    - call OpenAI
-    - estimate cost
-    - record usage
-    - store response in `ai_request_log`
-    - return response
-
-Important:
-Duplicate request must not call OpenAI again.
-Duplicate request must not call `UsageService.recordRequest(...)` again.
+- 1.0.1 is a StoreKit/quota/copy stability release, not a Siri/App Shortcuts release.
+- New iOS/watchOS AppIntent source files are intentionally parked for v1.1.
+- Existing widget and deep-link behavior remains unchanged.
+- Backend CI should run `./gradlew check jacocoTestReport --no-daemon`.
+- Frontend CI should run `swift test` plus isolated iOS and watchOS Xcode builds.
 
 ## Current Known Issues / Warnings
 

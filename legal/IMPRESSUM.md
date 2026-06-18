@@ -5,8 +5,8 @@
 > `/impressum`-Endpoint des Backends gerendert und im iOS/watchOS-Onboarding
 > verlinkt.
 >
-> **⚠ Vor Veröffentlichung ZWINGEND ergänzen:** Alle `<<…>>`-Marker.
-> Ein Impressum mit Platzhaltern ist abmahnfähig nach §§ 5 TMG, 3a UWG.
+> **⚠ Vor Veröffentlichung ZWINGEND prüfen:** Die Pflichtangaben müssen mit den
+> produktiven App-Store- und Backend-Links übereinstimmen.
 
 ---
 

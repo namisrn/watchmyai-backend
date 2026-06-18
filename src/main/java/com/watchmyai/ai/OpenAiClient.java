@@ -149,7 +149,7 @@ public class OpenAiClient {
         }
     }
 
-    private String buildRequestBody(
+    String buildRequestBody(
             String model,
             String systemPrompt,
             String userPrompt,
@@ -160,7 +160,8 @@ public class OpenAiClient {
                     "model", model,
                     "instructions", systemPrompt,
                     "input", userPrompt,
-                    "max_output_tokens", maxOutputTokens
+                    "max_output_tokens", maxOutputTokens,
+                    "store", false
             ));
         } catch (RuntimeException exception) {
             throw new OpenAiClientException("OpenAI-Anfrage konnte nicht vorbereitet werden.", exception);
