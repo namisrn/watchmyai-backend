@@ -81,7 +81,8 @@ class AiServiceIdempotencyTest {
                 userContextService,
                 synchronousExecutor,
                 new SimpleMeterRegistry(),
-                mock(com.watchmyai.telemetry.TelemetryService.class)
+                mock(com.watchmyai.telemetry.TelemetryService.class),
+                mock(com.watchmyai.quota.GlobalCostGuardService.class)
         );
     }
 
@@ -183,7 +184,8 @@ class AiServiceIdempotencyTest {
                 userContextService,
                 rejectingExecutor,
                 new SimpleMeterRegistry(),
-                mock(com.watchmyai.telemetry.TelemetryService.class)
+                mock(com.watchmyai.telemetry.TelemetryService.class),
+                mock(com.watchmyai.quota.GlobalCostGuardService.class)
         );
 
         AskAIRequest request = validRequest();
