@@ -1,5 +1,6 @@
 package com.watchmyai.ai;
 
+import com.watchmyai.quota.GlobalCostGuardService;
 import com.watchmyai.quota.PlanType;
 import com.watchmyai.quota.QuotaCheckResult;
 import com.watchmyai.quota.QuotaService;
@@ -44,6 +45,7 @@ public class AiService {
     private final Executor aiJobExecutor;
     private final Counter quotaBlockedCounter;
     private final TelemetryService telemetryService;
+    private final GlobalCostGuardService globalCostGuard;
 
     public AiService(
             ModelRouter modelRouter,
@@ -57,7 +59,8 @@ public class AiService {
             UserContextService userContextService,
             @Qualifier("aiJobExecutor") Executor aiJobExecutor,
             MeterRegistry meterRegistry,
-            TelemetryService telemetryService
+            TelemetryService telemetryService,
+            GlobalCostGuardService globalCostGuard
     ) {
         this.modelRouter = modelRouter;
         this.promptBuilder = promptBuilder;
@@ -71,6 +74,7 @@ public class AiService {
         this.aiJobExecutor = aiJobExecutor;
         this.quotaBlockedCounter = meterRegistry.counter("watchmyai.ai.quota_blocked");
         this.telemetryService = telemetryService;
+        this.globalCostGuard = globalCostGuard;
     }
 
     /**
@@ -105,6 +109,21 @@ public class AiService {
 
     private AskAIResponse submitNewRequest(AskAIRequest request, String userId) {
         PlanType currentPlan = userPlanService.getCurrentPlan();
+
+        // Cross-user cost kill-switch: if the day's aggregate provider spend has hit the
+        // cap, shed this request BEFORE any OpenAI call or quota reservation. By default
+        // only FREE is shed; paying users keep working. Surfaced as a transient "service
+        // busy", not a quota block, so the client doesn't show an upgrade prompt.
+        if (globalCostGuard.isOverDailyCap(currentPlan)) {
+            recordTelemetrySafely(
+                    "cost_guard_blocked",
+                    userId,
+                    "backend",
+                    currentPlan,
+                    java.util.Map.of("reason", "global_daily_cap")
+            );
+            return capacityShedResponse(currentPlan);
+        }
 
         AiRequestLogEntity requestLog;
         try {
@@ -220,6 +239,10 @@ public class AiService {
             BigDecimal estimatedRequestCostEur = costEstimatorService.estimateCostEur(model, inputTokens, outputTokens);
 
             usageService.finalizeRequest(userId, currentPlan, estimatedRequestCostEur);
+            // Grow the cross-user daily spend total that the cost guard reads. Counts all
+            // plans so the running figure matches the real OpenAI bill; the guard decides
+            // per-plan whether to act on it.
+            globalCostGuard.recordSpend(estimatedRequestCostEur);
             QuotaCheckResult updatedQuota = quotaService.checkQuota(userId, currentPlan);
 
             AskAIResponse response = new AskAIResponse(
@@ -308,6 +331,27 @@ public class AiService {
                 quota.estimatedMonthlyCostEur(),
                 quota.monthlyCostCapEur(),
                 quota.throttleState().toApiValue()
+        );
+    }
+
+    /**
+     * Returned when the global cost guard sheds a request. Modelled as a transient
+     * {@code failed}/"service busy" (like a saturated executor) rather than a quota
+     * {@code blocked} — it is a temporary capacity decision, not the user's own limit,
+     * so the client must NOT show an "upgrade your plan" prompt.
+     */
+    private AskAIResponse capacityShedResponse(PlanType plan) {
+        return new AskAIResponse(
+                AskAIResponse.STATUS_FAILED,
+                AiUserFacingMessages.SERVICE_BUSY,
+                "none",
+                plan,
+                false,
+                0,
+                0,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                QuotaState.NORMAL.toApiValue()
         );
     }
 

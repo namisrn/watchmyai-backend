@@ -28,8 +28,13 @@ class LegalPageControllerTest {
         mockMvc.perform(get("/privacy"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"))
-                .andExpect(content().string(containsString("WatchMyAI Privacy Policy")))
-                .andExpect(content().string(containsString("delete your WatchMyAI account from Settings")))
+                .andExpect(content().string(containsString("lang=\"de\"")))
+                .andExpect(content().string(containsString("Datenschutzerklärung")))
+                // GDPR Art. 13 essentials + EU AI Act disclosure must be present.
+                .andExpect(content().string(containsString("Verantwortlicher")))
+                .andExpect(content().string(containsString("Rechtsgrundlage")))
+                .andExpect(content().string(containsString("EU AI Act")))
+                .andExpect(content().string(containsString("Account-Löschung")))
                 .andExpect(content().string(containsString("support@watchmyai.app")));
     }
 
